@@ -3,9 +3,9 @@ parameters:
     paths:
         - .
     excludePaths:
-        - cache
-        - src/common/
-        - vendor
-        - templates_c
+        - ../../cache
+        - ../../src/common/
+        - ../../vendor
+        - ../../templates_c
 
     treatPhpDocTypesAsCertain: false
