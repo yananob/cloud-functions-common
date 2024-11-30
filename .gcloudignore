@@ -12,10 +12,13 @@
 # below:
 .git
 .gitignore
+.gitattributes
+.gitmodules
+.github/
 
 README.md
 # deploy related
-deploy.sh
+deploy*.sh
 config.json.sample
 config_*.json.sample
 
@@ -30,6 +33,7 @@ run_local.sh
 **/.pytest_cache/
 
 # for PHP
+_cf-common/
 cache/
 vendor/
 templates_c/
