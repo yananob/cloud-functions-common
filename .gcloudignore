@@ -30,7 +30,6 @@ run_local.sh
 **/.pytest_cache/
 
 # for PHP
-**/cache/
-**/vendor/
-**/templates_c/
-phpstan.neon
+cache/
+vendor/
+templates_c/
