@@ -3,9 +3,15 @@ parameters:
     paths:
         - .
     excludePaths:
+        # for indepent projects
         - ../../cache
         - ../../src/common/
         - ../../vendor
         - ../../templates_c
+        # for cloud_function_apps
+        - cache
+        - src/common/
+        - vendor
+        - templates_c
 
     treatPhpDocTypesAsCertain: false
