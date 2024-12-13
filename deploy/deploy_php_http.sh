@@ -43,9 +43,9 @@ echo "Starting to deploy ${FUNC_NAME}"
 
 rm -rf ./${WORK_DIR}
 mkdir -p ${WORK_DIR}
-pushd ${WORK_DIR}
 
-rsync -vaL --exclude-from=../_cf-common/deploy/rsync_exclude.conf ../ ./
+rsync -vaL --exclude-from=./_cf-common/deploy/rsync_exclude.conf ./${TARGET_DIR} ./${WORK_DIR}/
+pushd ${WORK_DIR}
 
 echo "-------- deploying http --------"
 gcloud functions deploy ${FUNC_NAME} \

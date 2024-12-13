@@ -1,13 +1,22 @@
 #!/bin/bash
 set -eu
 
-DEPLOY_DIR=_deploy
-export SCRIPT_NAME=$1
-# remove "/" on the right side
-SCRIPT_NAME=`php -r '$result=getenv("SCRIPT_NAME"); echo substr($result, -1) === "/" ? rtrim($result, "/") : $result;'`
+if [ "$#" -ne 2 ]; then
+  echo ""
+  echo "  Insufficient arguments."
+  echo "  Usage: $0 <dirname to be deployed> <name on Cloud Functions>"
+  echo ""
+  exit 1
+fi
 
-echo "Checking $SCRIPT_NAME"
-pushd $SCRIPT_NAME
+WORK_DIR=_deploy
+TARGET_DIR=$1
+export FUNC_NAME=$2
+# remove "/" on the right side
+FUNC_NAME=`php -r '$result=getenv("FUNC_NAME"); echo substr($result, -1) === "/" ? rtrim($result, "/") : $result;'`
+
+echo "Checking ${TARGET_DIR}"
+# pushd ${FUNC_NAME}
 
 # Check existance of .gcloudignore
 if ! test -f ".gcloudignore"; then
@@ -15,40 +24,37 @@ if ! test -f ".gcloudignore"; then
     exit 1
 fi
 
-# Check existance of specific deploy.sh
-if test -f "deploy.sh"; then
-    echo "Specific deploy.sh for this app exists. Please run it instead of this shell."
-    exit 1
-fi
+# # Check existance of specific deploy.sh
+# if test -f "deploy.sh"; then
+#     echo "Specific deploy.sh for this app exists. Please run it instead of this shell."
+#     exit 1
+# fi
 
 # check existance of config.sample.json & config.json
-if test -f "config.json.sample"; then
-    if test ! -f "config.json"; then
+if test -f "configs/config.json.sample"; then
+    if test ! -f "configs/config.json"; then
         echo "Config.json.sample exists. Please make config.json for this app."
         exit 1
     fi
 fi
-popd
+# popd
 
-echo "Starting to deploy $SCRIPT_NAME"
+echo "Starting to deploy ${FUNC_NAME}"
 
-mkdir -p $DEPLOY_DIR
-pushd $DEPLOY_DIR
+rm -rf ./${WORK_DIR}
+mkdir -p ${WORK_DIR}
 
-rm -rf ./$SCRIPT_NAME
-rsync -vaL --exclude-from=../_misc/deploy/rsync_exclude.conf ../$SCRIPT_NAME ./
-
-pushd $SCRIPT_NAME
+rsync -vaL --exclude-from=./_cf-common/deploy/rsync_exclude.conf ./${TARGET_DIR} ./${WORK_DIR}/
+pushd ${WORK_DIR}
 
 echo "-------- deploying topic --------"
-gcloud functions deploy $SCRIPT_NAME \
+gcloud functions deploy ${FUNC_NAME} \
     --gen2 \
     --runtime=php82 \
     --region=us-west1 \
     --source=. \
     --entry-point=main \
-    --trigger-topic=$SCRIPT_NAME
+    --trigger-topic=${FUNC_NAME}
 
 popd
-rm -rf ./$SCRIPT_NAME
-popd
+rm -rf ./${WORK_DIR}
