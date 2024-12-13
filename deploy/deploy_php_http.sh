@@ -2,7 +2,7 @@
 set -eu
 
 DEPLOY_DIR=_deploy
-export SCRIPT_NAME=line-ai-bot
+export SCRIPT_NAME=$1
 # remove "/" on the right side
 SCRIPT_NAME=`php -r '$result=getenv("SCRIPT_NAME"); echo substr($result, -1) === "/" ? rtrim($result, "/") : $result;'`
 
