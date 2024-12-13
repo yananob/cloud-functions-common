@@ -1,13 +1,22 @@
 #!/bin/bash
 set -eu
 
-DEPLOY_DIR=_deploy
-export SCRIPT_NAME=$1
-# remove "/" on the right side
-SCRIPT_NAME=`php -r '$result=getenv("SCRIPT_NAME"); echo substr($result, -1) === "/" ? rtrim($result, "/") : $result;'`
+if [ "$#" -ne 2 ]; then
+  echo ""
+  echo "  Insufficient arguments."
+  echo "  Usage: $0 <dirname to be deployed> <name on Cloud Functions>"
+  echo ""
+  exit 1
+fi
 
-echo "Checking ${SCRIPT_NAME}"
-# pushd ${SCRIPT_NAME}
+WORK_DIR=_deploy
+TARGET_DIR=$1
+export FUNC_NAME=$2
+# remove "/" on the right side
+FUNC_NAME=`php -r '$result=getenv("FUNC_NAME"); echo substr($result, -1) === "/" ? rtrim($result, "/") : $result;'`
+
+echo "Checking ${TARGET_DIR}"
+# pushd ${FUNC_NAME}
 
 # Check existance of .gcloudignore
 if ! test -f ".gcloudignore"; then
@@ -30,16 +39,16 @@ if test -f "configs/config.json.sample"; then
 fi
 # popd
 
-echo "Starting to deploy ${SCRIPT_NAME}"
+echo "Starting to deploy ${FUNC_NAME}"
 
-rm -rf ./${DEPLOY_DIR}
-mkdir -p ${DEPLOY_DIR}
-pushd ${DEPLOY_DIR}
+rm -rf ./${WORK_DIR}
+mkdir -p ${WORK_DIR}
+pushd ${WORK_DIR}
 
 rsync -vaL --exclude-from=../_cf-common/deploy/rsync_exclude.conf ../ ./
 
 echo "-------- deploying http --------"
-gcloud functions deploy ${SCRIPT_NAME} \
+gcloud functions deploy ${FUNC_NAME} \
     --gen2 \
     --runtime=php82 \
     --region=us-west1 \
@@ -50,4 +59,4 @@ gcloud functions deploy ${SCRIPT_NAME} \
     --max-instances 1
 
 popd
-rm -rf ./${DEPLOY_DIR}
+rm -rf ./${WORK_DIR}
