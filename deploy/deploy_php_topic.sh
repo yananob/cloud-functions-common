@@ -1,10 +1,10 @@
 #!/bin/bash
 set -eu
 
-if [ "$#" -ne 2 ]; then
+if [ "$#" -lt 2 ]; then
   echo ""
   echo "  Insufficient arguments."
-  echo "  Usage: $0 <dirname to be deployed> <name on Cloud Functions>"
+  echo "  Usage: $0 <dirname to be deployed> <name on Cloud Functions> <entry point: default=main>"
   echo ""
   exit 1
 fi
@@ -14,6 +14,12 @@ TARGET_DIR=$1
 export FUNC_NAME=$2
 # remove "/" on the right side
 FUNC_NAME=`php -r '$result=getenv("FUNC_NAME"); echo substr($result, -1) === "/" ? rtrim($result, "/") : $result;'`
+
+if [ "$#" -lt 3 ]; then
+    ENTRY_POINT=main
+else
+    ENTRY_POINT=$3
+fi
 
 echo "Checking ${TARGET_DIR}"
 # pushd ${FUNC_NAME}
@@ -53,7 +59,7 @@ gcloud functions deploy ${FUNC_NAME} \
     --runtime=php82 \
     --region=us-west1 \
     --source=. \
-    --entry-point=main \
+    --entry-point=${ENTRY_POINT} \
     --trigger-topic=${FUNC_NAME}
 
 popd
