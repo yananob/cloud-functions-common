@@ -45,6 +45,7 @@ if test -f "configs/config.json.sample"; then
 fi
 # popd
 
+echo "----------------------------------------------------------------"
 echo "Starting to deploy ${FUNC_NAME}"
 
 rm -rf ./${WORK_DIR}
@@ -53,7 +54,7 @@ mkdir -p ${WORK_DIR}
 rsync -vaL --exclude-from=./_cf-common/deploy/rsync_exclude.conf ./${TARGET_DIR} ./${WORK_DIR}/
 pushd ${WORK_DIR}
 
-echo "-------- deploying http --------"
+echo -e "\e[33m deploying http function [${FUNC_NAME}] \e[m"
 gcloud functions deploy ${FUNC_NAME} \
     --gen2 \
     --runtime=php82 \
