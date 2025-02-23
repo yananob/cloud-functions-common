@@ -8,10 +8,12 @@ parameters:
         - ../../src/common/
         - ../../vendor
         - ../../templates_c
+        - ../../_deploy
         # for cloud_function_apps
         - cache
         - src/common/
         - vendor
         - templates_c
+        - _deploy
 
     treatPhpDocTypesAsCertain: false
