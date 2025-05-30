@@ -1,6 +1,8 @@
 #!/bin/bash
 set -eu
 
+source ./_cf-common/deploy/common.sh
+
 if [ "$#" -lt 2 ]; then
   echo ""
   echo "  Insufficient arguments."
@@ -63,7 +65,9 @@ gcloud functions deploy ${FUNC_NAME} \
     --entry-point=${ENTRY_POINT} \
     --trigger-http \
     --allow-unauthenticated \
-    --max-instances 1
+    --max-instances 1 \
+    --clear-env-vars \
+    --set-secrets OPENAI_API_KEY=openai-api-key-line-ai-bot:latest
 
 popd
 rm -rf ./${WORK_DIR}
