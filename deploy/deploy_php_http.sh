@@ -63,11 +63,11 @@ gcloud functions deploy ${FUNC_NAME} \
     --region=us-west1 \
     --source=. \
     --entry-point=${ENTRY_POINT} \
+    --set-secrets OPENAI_KEY_LINE_AI_BOT=OPENAI_KEY_LINE_AI_BOT:latest \
+    --set-secrets LINE_TOKENS_N_TARGETS=LINE_TOKENS_N_TARGETS:latest \
     --trigger-http \
     --allow-unauthenticated \
-    --max-instances 1 \
-    --clear-env-vars \
-    --set-secrets OPENAI_KEY_LINE_AI_BOT=OPENAI_KEY_LINE_AI_BOT:latest
+    --max-instances 1
 
 popd
 rm -rf ./${WORK_DIR}
