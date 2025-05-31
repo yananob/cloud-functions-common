@@ -67,7 +67,7 @@ gcloud functions deploy ${FUNC_NAME} \
     --allow-unauthenticated \
     --max-instances 1 \
     --clear-env-vars \
-    --set-secrets OPENAI_API_KEY=openai-api-key-line-ai-bot:latest
+    --set-secrets OPENAI_KEY_LINE_AI_BOT=OPENAI_KEY_LINE_AI_BOT:latest
 
 popd
 rm -rf ./${WORK_DIR}
