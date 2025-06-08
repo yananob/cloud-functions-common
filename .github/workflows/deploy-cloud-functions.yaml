@@ -93,10 +93,6 @@ jobs:
       # Determine the project ID for secrets. Use inputs.secrets_project_id if provided, otherwise default to inputs.project_id
       SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
     steps:
-      - name: debug
-        shell: bash
-        run: echo "${{ inputs.secrets_config }}"
-
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
@@ -125,6 +121,10 @@ jobs:
           echo "formatted_secrets<<EOF" >> $GITHUB_OUTPUT
           echo -e "$secrets_output" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Secrets
+        shell: bash
+        run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
 
       - name: Deploy Cloud Functions (http)
         if: inputs.deploy_http_trigger
