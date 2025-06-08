@@ -88,10 +88,16 @@ permissions:
 
 jobs:
   deploy:
+    runs-on: ubuntu-latest
     env:
       # Determine the project ID for secrets. Use inputs.secrets_project_id if provided, otherwise default to inputs.project_id
       SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+          
       - name: Google Cloud認証
         id: 'auth'
         uses: 'google-github-actions/auth@v2'
