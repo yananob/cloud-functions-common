@@ -107,41 +107,33 @@ jobs:
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
-        shell: bash
+        shell: bash # ここは必ずbashに設定
         run: |
           echo "--- Raw secrets_config_input content (with character codes) ---"
           echo "${{ inputs.secrets_config }}" | od -c
           echo "--- End Raw secrets_config_input content ---"
 
           secrets_config_input="${{ inputs.secrets_config }}"
-
-          echo "--- Debugging secrets_array population ---"
-          
-          echo "--- Debugging secrets_config_input ---"
-          echo "${{ inputs.secrets_config }}"
-          echo "--- End Debugging ---"
-
-          secrets_config_input="${{ inputs.secrets_config }}"
           secrets_array=()
           
-          # inputs.secrets_config を改行で分割し、配列に格納する
-          # read -r -a はBashの機能で、IFSと組み合わせて配列に読み込みます。
-          # もし、`read -r -a` でエラーが出る場合は、GitHub Actions の実行環境のBashバージョンが古い可能性があります。
-          # その場合は、`readarray -t secrets_array <<< "$secrets_config_input"` もしくは
-          # while read ループ（ただし、サブシェル問題に注意が必要）に切り替える必要があります。
-          IFS=$'\n' read -r -a secrets_array <<< "$secrets_config_input"
+          echo "--- Debugging secrets_array population ---"
+          echo "secrets_config_input received: '${secrets_config_input}'"
+
+          # ここを readarray -t に変更します
+          # -t オプションは、末尾の改行文字を削除して要素を読み込みます
+          readarray -t secrets_array <<< "$secrets_config_input"
           
-          echo "--- Debugging secrets_array contents ---"
-          echo "secrets_array length: ${#secrets_array[@]}"
+          echo "secrets_array contents:"
           printf 'Array element: "%s"\n' "${secrets_array[@]}"
-          echo "--- End Debugging secrets_array contents ---"
+          echo "Array length: ${#secrets_array[@]}"
+          echo "--- End Debugging secrets_array ---"
 
           secrets_output=""
-          first_secret=true # 最初のシークレットかどうかを判定するためのフラグ
+          first_secret=true
 
           echo "--- Debugging loop execution ---"
           for secret_name in "${secrets_array[@]}"; do
-            # 空文字列の要素をスキップ
+            # readarray -t は空行を読み込む可能性があるため、引き続きスキップロジックは重要
             if [ -z "$secret_name" ]; then
               echo "Skipping empty line."
               continue
@@ -149,7 +141,6 @@ jobs:
 
             echo "Processing secret_name: '$secret_name'"
 
-            # 最初のシークレットでなければカンマを追加
             if [ "$first_secret" = false ]; then
               secrets_output="${secrets_output},"
               echo "Added comma. secrets_output is now: '$secrets_output'"
@@ -158,7 +149,7 @@ jobs:
             secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
             echo "Current secrets_output inside loop: '$secrets_output'"
             
-            first_secret=false # 最初のシークレットを処理したのでフラグをfalseにする
+            first_secret=false
           done
           echo "--- End Debugging loop execution ---"
           
@@ -169,12 +160,7 @@ jobs:
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           echo "--- Debugging GITHUB_OUTPUT ---"
-          # GITHUB_OUTPUTに書き込まれた値を確認するために、
-          # このステップの直後にformatted_secretsを参照する別のステップを追加し、
-          # そのステップでechoしてみてください。
           echo "Formatted Secrets Output Check:"
-          # 例えば、次のステップで以下のようにechoする
-          # - run: echo "Value of formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}"
           echo "--- End Debugging GITHUB_OUTPUT ---"
 
       - name: Secrets
