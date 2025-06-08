@@ -139,6 +139,7 @@ jobs:
           service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
           max_instance_count: ${{ inputs.max_instance_count }}
+          sssssss: ${{ steps.prep_secrets.outputs.formatted_secrets }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
 
       - name: Deploy Cloud Functions (event)
