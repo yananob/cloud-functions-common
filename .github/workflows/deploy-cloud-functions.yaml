@@ -114,56 +114,61 @@ jobs:
           echo "--- End Debugging ---"
 
           secrets_config_input="${{ inputs.secrets_config }}"
-          
-          echo "--- Debugging secrets_array population ---"
-          echo "secrets_config_input received: '${secrets_config_input}'"
-
           secrets_array=()
-          # inputs.secrets_config が改行区切りであることを前提に、配列に読み込み
-          # read -r -a を使用し、IFS=$'\n' で改行を区切り文字とする
-          # <<< "$secrets_config_input" はhere-stringで、変数を標準入力として渡す
+          
+          # inputs.secrets_config を改行で分割し、配列に格納する
+          # read -r -a はBashの機能で、IFSと組み合わせて配列に読み込みます。
+          # もし、`read -r -a` でエラーが出る場合は、GitHub Actions の実行環境のBashバージョンが古い可能性があります。
+          # その場合は、`readarray -t secrets_array <<< "$secrets_config_input"` もしくは
+          # while read ループ（ただし、サブシェル問題に注意が必要）に切り替える必要があります。
           IFS=$'\n' read -r -a secrets_array <<< "$secrets_config_input"
           
-          echo "secrets_array contents:"
-          printf '%s\n' "${secrets_array[@]}"
-          echo "Array length: ${#secrets_array[@]}"
-          echo "--- End Debugging secrets_array ---"
+          echo "--- Debugging secrets_array contents ---"
+          echo "secrets_array length: ${#secrets_array[@]}"
+          printf 'Array element: "%s"\n' "${secrets_array[@]}"
+          echo "--- End Debugging secrets_array contents ---"
 
-          # formatted_secrets を改行区切りで出力するため、テンポラリファイルを使用
-          # または配列に一度格納し、後でjoinする手もありますが、ここではbashで直接構築
-          formatted_secrets_lines=()
+          secrets_output=""
+          first_secret=true # 最初のシークレットかどうかを判定するためのフラグ
 
           echo "--- Debugging loop execution ---"
           for secret_name in "${secrets_array[@]}"; do
-            echo "Looping with secret_name: '$secret_name'"
-            if [ -n "$secret_name" ]; then # 空行をスキップ
-              # 各シークレットのフォーマット済み文字列を配列に追加
-              formatted_secrets_lines+=("${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest")
-              echo "Added line: '${formatted_secrets_lines[-1]}'"
-            else
-              echo "Skipping empty secret_name."
+            # 空文字列の要素をスキップ
+            if [ -z "$secret_name" ]; then
+              echo "Skipping empty line."
+              continue
             fi
+
+            echo "Processing secret_name: '$secret_name'"
+
+            # 最初のシークレットでなければカンマを追加
+            if [ "$first_secret" = false ]; then
+              secrets_output="${secrets_output},"
+              echo "Added comma. secrets_output is now: '$secrets_output'"
+            fi
+
+            secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
+            echo "Current secrets_output inside loop: '$secrets_output'"
+            
+            first_secret=false # 最初のシークレットを処理したのでフラグをfalseにする
           done
           echo "--- End Debugging loop execution ---"
           
-          # formatted_secrets_lines 配列の要素を改行で結合
-          # IFS=$'\n' を使って配列をjoin
-          printf -v secrets_output '%s\n' "${formatted_secrets_lines[@]}"
-          
-          echo "secrets_output after loop (main shell before GITHUB_OUTPUT):\n'$secrets_output'"
+          echo "secrets_output after loop (main shell before GITHUB_OUTPUT): '$secrets_output'"
 
           echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
-          # -e を使うとバックスラッシュエスケープが解釈されるため、
-          # 改行をそのまま出力したい場合は -e なしでも良いですが、
-          # こちらは問題ないので維持します。
-          echo "$secrets_output" >> "$GITHUB_OUTPUT" 
+          echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           echo "--- Debugging GITHUB_OUTPUT ---"
           # GITHUB_OUTPUTに書き込まれた値を確認するために、
           # このステップの直後にformatted_secretsを参照する別のステップを追加し、
           # そのステップでechoしてみてください。
-          echo "--- End Debugging ---"
+          echo "Formatted Secrets Output Check:"
+          # 例えば、次のステップで以下のようにechoする
+          # - run: echo "Value of formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}"
+          echo "--- End Debugging GITHUB_OUTPUT ---"
+
       - name: Secrets
         shell: bash
         run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
