@@ -107,31 +107,49 @@ jobs:
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
-        shell: bash
+        shell: bash # ここがbashになっていることを確認
         run: |
           echo "--- Debugging secrets_config_input ---"
           echo "${{ inputs.secrets_config }}"
           echo "--- End Debugging ---"
 
           secrets_config_input="${{ inputs.secrets_config }}"
+          
+          echo "--- Debugging secrets_array population ---"
+          # secrets_config_input が正しく受け取れているか確認
+          echo "secrets_config_input received: '${secrets_config_input}'"
+
           secrets_array=()
-          # IFS=$'\n' を使って改行区切りで配列に格納
-          # read -d '' -ra はbashの拡張機能で、null文字を区切り文字として読み込みます。
-          # これにより、inputs.secrets_config に最後に改行があっても空行として扱われません。
-          IFS=$'\n' read -d '' -ra secrets_array <<< "$secrets_config_input"
+          # IFS=$'\n' read -d '' -ra secrets_array <<< "$secrets_config_input"
+          # ↑ もしエラーが出るなら、より互換性の高い方法を試す
+          
+          # より互換性の高いreadとIFSの組み合わせ
+          # inputs.secrets_config の末尾に改行がない場合でも最後の行が読み込まれるように調整
+          # 読み込みたい文字列をhere string (<<<) で渡す
+          IFS=$'\n' read -r -a secrets_array <<< "$secrets_config_input"
+          
+          # 配列の内容を確認
+          echo "secrets_array contents:"
+          printf '%s\n' "${secrets_array[@]}"
+          echo "Array length: ${#secrets_array[@]}"
+          echo "--- End Debugging secrets_array ---"
 
           secrets_output=""
+          echo "--- Debugging loop execution ---"
           for secret_name in "${secrets_array[@]}"; do
-            # 空行はスキップ
+            echo "Looping with secret_name: '$secret_name'" # 各要素をログ出力
             if [ -n "$secret_name" ]; then
-              # 最初の要素でなければカンマを追加
               if [ -n "$secrets_output" ]; then
                 secrets_output="${secrets_output}," 
+                echo "Added comma. secrets_output: '$secrets_output'" # カンマ追加後の状態
               fi
               secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
-              echo "Building secrets_output (in main shell): '$secrets_output'" # メインシェルでの値をログ出力
+              echo "Built secret string. secrets_output: '$secrets_output'" # 構築中の文字列の状態
+            else
+              echo "Skipping empty secret_name."
             fi
           done
+          echo "--- End Debugging loop execution ---"
           
           echo "secrets_output after loop (main shell before GITHUB_OUTPUT): '$secrets_output'"
 
