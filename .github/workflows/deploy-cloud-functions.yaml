@@ -93,6 +93,10 @@ jobs:
       # Determine the project ID for secrets. Use inputs.secrets_project_id if provided, otherwise default to inputs.project_id
       SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
     steps:
+      - name: debug
+        shell: bash
+        run: echo "${{ inputs.secrets_config }}"
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
