@@ -65,7 +65,7 @@ on:
         description: 'HTTPトリガー関数のエントリポイント'
         required: false
         type: string
-        default: 'main'
+        default: 'main_http'
       deploy_event_trigger:
         description: 'イベントトリガー関数をデプロイするかどうか'
         required: false
@@ -75,12 +75,12 @@ on:
         description: 'イベントトリガー関数のエントリポイント'
         required: false
         type: string
-        default: 'trigger'
+        default: 'main_event'
       event_trigger_pubsub_topic_suffix:
         description: 'イベントトリガーPub/Subトピックのサフィックス（function_nameに付加されます）'
         required: false
         type: string
-        default: '-trigger'
+        default: '-event'
 
 permissions:
   contents: 'read'
