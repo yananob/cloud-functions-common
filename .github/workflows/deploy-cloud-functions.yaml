@@ -107,7 +107,7 @@ jobs:
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
-        shell: bash # ここがbashになっていることを確認
+        shell: bash
         run: |
           echo "--- Debugging secrets_config_input ---"
           echo "${{ inputs.secrets_config }}"
@@ -116,45 +116,47 @@ jobs:
           secrets_config_input="${{ inputs.secrets_config }}"
           
           echo "--- Debugging secrets_array population ---"
-          # secrets_config_input が正しく受け取れているか確認
           echo "secrets_config_input received: '${secrets_config_input}'"
 
           secrets_array=()
-          # IFS=$'\n' read -d '' -ra secrets_array <<< "$secrets_config_input"
-          # ↑ もしエラーが出るなら、より互換性の高い方法を試す
-          
-          # より互換性の高いreadとIFSの組み合わせ
-          # inputs.secrets_config の末尾に改行がない場合でも最後の行が読み込まれるように調整
-          # 読み込みたい文字列をhere string (<<<) で渡す
+          # inputs.secrets_config が改行区切りであることを前提に、配列に読み込み
+          # read -r -a を使用し、IFS=$'\n' で改行を区切り文字とする
+          # <<< "$secrets_config_input" はhere-stringで、変数を標準入力として渡す
           IFS=$'\n' read -r -a secrets_array <<< "$secrets_config_input"
           
-          # 配列の内容を確認
           echo "secrets_array contents:"
           printf '%s\n' "${secrets_array[@]}"
           echo "Array length: ${#secrets_array[@]}"
           echo "--- End Debugging secrets_array ---"
 
-          secrets_output=""
+          # formatted_secrets を改行区切りで出力するため、テンポラリファイルを使用
+          # または配列に一度格納し、後でjoinする手もありますが、ここではbashで直接構築
+          formatted_secrets_lines=()
+
           echo "--- Debugging loop execution ---"
           for secret_name in "${secrets_array[@]}"; do
-            echo "Looping with secret_name: '$secret_name'" # 各要素をログ出力
-            if [ -n "$secret_name" ]; then
-              if [ -n "$secrets_output" ]; then
-                secrets_output="${secrets_output}," 
-                echo "Added comma. secrets_output: '$secrets_output'" # カンマ追加後の状態
-              fi
-              secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
-              echo "Built secret string. secrets_output: '$secrets_output'" # 構築中の文字列の状態
+            echo "Looping with secret_name: '$secret_name'"
+            if [ -n "$secret_name" ]; then # 空行をスキップ
+              # 各シークレットのフォーマット済み文字列を配列に追加
+              formatted_secrets_lines+=("${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest")
+              echo "Added line: '${formatted_secrets_lines[-1]}'"
             else
               echo "Skipping empty secret_name."
             fi
           done
           echo "--- End Debugging loop execution ---"
           
-          echo "secrets_output after loop (main shell before GITHUB_OUTPUT): '$secrets_output'"
+          # formatted_secrets_lines 配列の要素を改行で結合
+          # IFS=$'\n' を使って配列をjoin
+          printf -v secrets_output '%s\n' "${formatted_secrets_lines[@]}"
+          
+          echo "secrets_output after loop (main shell before GITHUB_OUTPUT):\n'$secrets_output'"
 
           echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
-          echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
+          # -e を使うとバックスラッシュエスケープが解釈されるため、
+          # 改行をそのまま出力したい場合は -e なしでも良いですが、
+          # こちらは問題ないので維持します。
+          echo "$secrets_output" >> "$GITHUB_OUTPUT" 
           echo "EOF" >> "$GITHUB_OUTPUT"
 
           echo "--- Debugging GITHUB_OUTPUT ---"
@@ -162,7 +164,6 @@ jobs:
           # このステップの直後にformatted_secretsを参照する別のステップを追加し、
           # そのステップでechoしてみてください。
           echo "--- End Debugging ---"
-
       - name: Secrets
         shell: bash
         run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
