@@ -109,6 +109,14 @@ jobs:
         id: prep_secrets
         shell: bash
         run: |
+          echo "--- Raw secrets_config_input content (with character codes) ---"
+          echo "${{ inputs.secrets_config }}" | od -c
+          echo "--- End Raw secrets_config_input content ---"
+
+          secrets_config_input="${{ inputs.secrets_config }}"
+
+          echo "--- Debugging secrets_array population ---"
+          
           echo "--- Debugging secrets_config_input ---"
           echo "${{ inputs.secrets_config }}"
           echo "--- End Debugging ---"
