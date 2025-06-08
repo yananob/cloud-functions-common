@@ -113,28 +113,36 @@ jobs:
           echo "${{ inputs.secrets_config }}"
           echo "--- End Debugging ---"
 
+          secrets_config_input="${{ inputs.secrets_config }}"
+          secrets_array=()
+          # IFS=$'\n' を使って改行区切りで配列に格納
+          # read -d '' -ra はbashの拡張機能で、null文字を区切り文字として読み込みます。
+          # これにより、inputs.secrets_config に最後に改行があっても空行として扱われません。
+          IFS=$'\n' read -d '' -ra secrets_array <<< "$secrets_config_input"
+
           secrets_output=""
-          echo "${{ inputs.secrets_config }}" | while IFS= read -r secret_name; do
-            echo "Processing secret_name: '$secret_name'" # 各シークレット名をログ出力
+          for secret_name in "${secrets_array[@]}"; do
+            # 空行はスキップ
             if [ -n "$secret_name" ]; then
+              # 最初の要素でなければカンマを追加
               if [ -n "$secrets_output" ]; then
-                secrets_output="${secrets_output}" # ここでカンマなどを入れるべき
+                secrets_output="${secrets_output}," 
               fi
               secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
-              echo "Current secrets_output inside loop (subshell): '$secrets_output'" # ループ内での値をログ出力
+              echo "Building secrets_output (in main shell): '$secrets_output'" # メインシェルでの値をログ出力
             fi
           done
           
-          echo "secrets_output after loop (main shell before GITHUB_OUTPUT): '$secrets_output'" # ループ後の値をログ出力
+          echo "secrets_output after loop (main shell before GITHUB_OUTPUT): '$secrets_output'"
 
-          echo "formatted_secrets<<EOF" >> $GITHUB_OUTPUT
-          echo -e "$secrets_output" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
           echo "--- Debugging GITHUB_OUTPUT ---"
-          # GITHUB_OUTPUTがどのようにファイルに書き込まれるか直接見ることは難しいですが、
-          # このステップの直後にformatted_secretsを参照するステップを追加して、
-          # そのステップで参照できるか確認すると良いでしょう。
+          # GITHUB_OUTPUTに書き込まれた値を確認するために、
+          # このステップの直後にformatted_secretsを参照する別のステップを追加し、
+          # そのステップでechoしてみてください。
           echo "--- End Debugging ---"
 
       - name: Secrets
