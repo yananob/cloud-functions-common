@@ -109,10 +109,6 @@ jobs:
         id: prep_secrets
         shell: bash # ここは必ずbashに設定
         run: |
-          # echo "--- Raw secrets_config_input content (with character codes) ---"
-          # echo "${{ inputs.secrets_config }}" | od -c
-          # echo "--- End Raw secrets_config_input content ---"
-
           secrets_config_input="${{ inputs.secrets_config }}"
           secrets_array=()
           
