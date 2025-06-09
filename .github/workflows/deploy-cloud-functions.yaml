@@ -109,29 +109,29 @@ jobs:
         id: prep_secrets
         shell: bash # ここは必ずbashに設定
         run: |
-          echo "--- Raw secrets_config_input content (with character codes) ---"
-          echo "${{ inputs.secrets_config }}" | od -c
-          echo "--- End Raw secrets_config_input content ---"
+          # echo "--- Raw secrets_config_input content (with character codes) ---"
+          # echo "${{ inputs.secrets_config }}" | od -c
+          # echo "--- End Raw secrets_config_input content ---"
 
           secrets_config_input="${{ inputs.secrets_config }}"
           secrets_array=()
           
-          echo "--- Debugging secrets_array population ---"
+          # echo "--- Debugging secrets_array population ---"
           echo "secrets_config_input received: '${secrets_config_input}'"
 
           # ここを readarray -t に変更します
           # -t オプションは、末尾の改行文字を削除して要素を読み込みます
           readarray -t secrets_array <<< "$secrets_config_input"
           
-          echo "secrets_array contents:"
-          printf 'Array element: "%s"\n' "${secrets_array[@]}"
-          echo "Array length: ${#secrets_array[@]}"
-          echo "--- End Debugging secrets_array ---"
+          # echo "secrets_array contents:"
+          # printf 'Array element: "%s"\n' "${secrets_array[@]}"
+          # echo "Array length: ${#secrets_array[@]}"
+          # echo "--- End Debugging secrets_array ---"
 
           secrets_output=""
           first_secret=true
 
-          echo "--- Debugging loop execution ---"
+          # echo "--- Debugging loop execution ---"
           for secret_name in "${secrets_array[@]}"; do
             # readarray -t は空行を読み込む可能性があるため、引き続きスキップロジックは重要
             if [ -z "$secret_name" ]; then
@@ -143,11 +143,11 @@ jobs:
 
             if [ "$first_secret" = false ]; then
               secrets_output="${secrets_output},"
-              echo "Added comma. secrets_output is now: '$secrets_output'"
+              # echo "Added comma. secrets_output is now: '$secrets_output'"
             fi
 
             secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
-            echo "Current secrets_output inside loop: '$secrets_output'"
+            # echo "Current secrets_output inside loop: '$secrets_output'"
             
             first_secret=false
           done
@@ -159,13 +159,13 @@ jobs:
           echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
 
-          echo "--- Debugging GITHUB_OUTPUT ---"
-          echo "Formatted Secrets Output Check:"
-          echo "--- End Debugging GITHUB_OUTPUT ---"
+          # echo "--- Debugging GITHUB_OUTPUT ---"
+          # echo "Formatted Secrets Output Check:"
+          # echo "--- End Debugging GITHUB_OUTPUT ---"
 
-      - name: Secrets
-        shell: bash
-        run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
+      # - name: Check secrets
+      #   shell: bash
+      #   run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
 
       - name: Deploy Cloud Functions (http)
         if: inputs.deploy_http_trigger
