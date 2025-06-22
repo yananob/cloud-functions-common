@@ -16,21 +16,15 @@
 .gitmodules
 .github/
 
-README.md
+*.md
 # deploy related
 deploy*.sh
-config.json.sample
-config_*.json.sample
 
 **/configs/*.json.sample
 
 # for local development
-run_local.sh
 **/tests/
 **/tools/
-
-# for Python
-**/.pytest_cache/
 
 # for PHP
 _cf-common/
@@ -38,3 +32,4 @@ cache/
 vendor/
 templates_c/
 phpstan.neon
+phpunit.xml*
