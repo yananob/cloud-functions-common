@@ -19,6 +19,7 @@
 *.md
 # deploy related
 deploy*.sh
+gha-creds-*.json
 
 **/configs/*.json.sample
 
