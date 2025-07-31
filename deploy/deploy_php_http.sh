@@ -6,7 +6,7 @@ source ./_cf-common/deploy/common.sh
 if [ "$#" -lt 2 ]; then
   echo ""
   echo "  Insufficient arguments."
-  echo "  Usage: $0 <dirname to be deployed> <name on Cloud Functions> <entry point: default=main>"
+  echo "  Usage: $0 <dirname to be deployed> <name on Cloud Functions> <entry point: default=main_http>"
   echo ""
   exit 1
 fi
@@ -18,7 +18,7 @@ export FUNC_NAME=$2
 FUNC_NAME=`php -r '$result=getenv("FUNC_NAME"); echo substr($result, -1) === "/" ? rtrim($result, "/") : $result;'`
 
 if [ "$#" -lt 3 ]; then
-    ENTRY_POINT=main
+    ENTRY_POINT=main_http
 else
     ENTRY_POINT=$3
 fi
