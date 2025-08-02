@@ -182,7 +182,7 @@ jobs:
         uses: 'google-github-actions/upload-cloud-storage@v2'
         with:
           path: ${{ inputs.gcs_source_dir }}
-          destination: 'gs://${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}/'
+          destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}/'
           sync: true
 
       - name: Deploy Cloud Functions (http)
