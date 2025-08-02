@@ -183,7 +183,7 @@ jobs:
         with:
           path: ${{ inputs.gcs_source_dir }}
           parent: false
-          destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}/'
+          destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}'
 
       - name: Deploy Cloud Functions (http)
         if: inputs.deploy_http_trigger
