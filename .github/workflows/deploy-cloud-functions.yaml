@@ -56,6 +56,21 @@ on:
         required: false
         type: number
         default: 1
+      gcs_source_dir:
+        description: 'Cloud Storageへのコピー元ディレクトリ'
+        required: false
+        type: string
+        default: ''
+      gcs_bucket_name:
+        description: 'Cloud Storageのコピー先バケット名'
+        required: false
+        type: string
+        default: ''
+      gcs_bucket_path:
+        description: 'Cloud Storageのコピー先パス'
+        required: false
+        type: string
+        default: ''
       deploy_http_trigger:
         description: 'HTTPトリガー関数をデプロイするかどうか'
         required: false
