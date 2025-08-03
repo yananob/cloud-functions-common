@@ -184,7 +184,7 @@ jobs:
       #   run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
 
       - name: Mirror local directory to GCS
-        if: inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != '' && inputs.gcs_bucket_path != ''
+        if: inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
         uses: 'google-github-actions/upload-cloud-storage@v2'
         with:
           path: ${{ inputs.gcs_source_dir }}
