@@ -71,6 +71,11 @@ on:
         required: false
         type: string
         default: ''
+      disable_gcs_cache:
+        description: 'Cloud Storageでのキャッシュを無効化するかどうか'
+        required: false
+        type: boolean
+        default: false
       deploy_http_trigger:
         description: 'HTTPトリガー関数をデプロイするかどうか'
         required: false
@@ -179,11 +184,18 @@ jobs:
       #   run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
 
       - name: Mirror local directory to GCS
+        if: inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != '' && inputs.gcs_bucket_path != ''
         uses: 'google-github-actions/upload-cloud-storage@v2'
         with:
           path: ${{ inputs.gcs_source_dir }}
           parent: false
           destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}'
+
+      - name: Disable cache for files on GCS
+        if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != '' && inputs.gcs_bucket_path != ''
+        shell: bash
+        run: |
+          gsutil setmeta -h "Cache-Control: no-cache, no-store, must-revalidate" gs://{{ inputs.gcs_bucket_name }}/{{ inputs.gcs_bucket_path }}/**/*
 
       - name: Deploy Cloud Functions (http)
         if: inputs.deploy_http_trigger
