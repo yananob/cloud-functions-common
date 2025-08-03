@@ -191,11 +191,12 @@ jobs:
           parent: false
           destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}'
 
-      - name: Disable cache for files on GCS
-        if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != '' && inputs.gcs_bucket_path != ''
-        shell: bash
-        run: |
-          gsutil setmeta -h "Cache-Control: no-cache, no-store, must-revalidate" gs://${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}/**/*
+      # gsutilだと違う(anonymous)権限になるようで、エラーになる
+      # - name: Disable cache for files on GCS
+      #   if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != '' && inputs.gcs_bucket_path != ''
+      #   shell: bash
+      #   run: |
+      #     gsutil setmeta -h "Cache-Control: no-cache, no-store, must-revalidate" gs://${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}/**/*
 
       - name: Deploy Cloud Functions (http)
         if: inputs.deploy_http_trigger
