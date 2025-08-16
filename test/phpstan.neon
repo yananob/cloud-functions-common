@@ -3,8 +3,8 @@ parameters:
     paths:
         - .
     excludePaths:
-        # for cloud_function_apps
         - vendor
+        - node_modules
         - templates_c (?)
         - _deploy (?)
 
