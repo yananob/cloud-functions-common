@@ -192,7 +192,7 @@ jobs:
           destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}'
 
       - name: 'Update Cache-Control metadata for JS files'
-        if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != '' && inputs.gcs_bucket_path != ''
+        if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
         shell: bash
         run: |
           gcloud storage objects update gs://oml-static/**/* --cache-control="no-cache,no-store,must-revalidate"
