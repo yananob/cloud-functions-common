@@ -16,6 +16,8 @@
 .gitmodules
 .github/
 
+.vscode/
+
 *.md
 # deploy related
 deploy*.sh
@@ -26,6 +28,7 @@ gha-creds-*.json
 # for local development
 **/tests/
 **/tools/
+**/miscs/
 
 # for PHP
 _cf-common/
@@ -37,3 +40,4 @@ phpunit.xml*
 
 # for Node.js
 node_modules/
+eslint.config.js
