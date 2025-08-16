@@ -34,3 +34,6 @@ vendor/
 templates_c/
 phpstan.neon
 phpunit.xml*
+
+# for Node.js
+node_modules/
