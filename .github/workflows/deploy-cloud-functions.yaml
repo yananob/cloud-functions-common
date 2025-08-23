@@ -65,7 +65,7 @@ on:
         description: 'イベントトリガー関数のタイムアウト時間
         required: false
         type: string
-        default: 300s
+        default: 5m
       gcs_source_dir:
         description: 'Cloud Storageへのコピー元ディレクトリ'
         required: false
