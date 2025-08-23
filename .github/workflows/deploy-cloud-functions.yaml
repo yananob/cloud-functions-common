@@ -60,17 +60,17 @@ on:
         description: '関数に割り当てるメモリ量'
         required: false
         type: string
-        default: 256M
+        default: '256M'
       http_timeout:
         description: 'HTTPトリガー関数のタイムアウト時間'
         required: false
         type: string
-        default: 60s
+        default: '60s'
       event_timeout:
         description: 'イベントトリガー関数のタイムアウト時間
         required: false
         type: string
-        default: 5m
+        default: '5m'
       gcs_source_dir:
         description: 'Cloud Storageへのコピー元ディレクトリ'
         required: false
