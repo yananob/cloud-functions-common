@@ -56,6 +56,16 @@ on:
         required: false
         type: number
         default: 1
+      http_timeout:
+        description: 'HTTPトリガー関数のタイムアウト時間'
+        required: false
+        type: string
+        default: 60s
+      event_timeout:
+        description: 'イベントトリガー関数のタイムアウト時間
+        required: false
+        type: string
+        default: 300s
       gcs_source_dir:
         description: 'Cloud Storageへのコピー元ディレクトリ'
         required: false
@@ -210,6 +220,7 @@ jobs:
           service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
           max_instance_count: ${{ inputs.max_instance_count }}
+          service_timeout: ${{ inputs.http_timeout }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
 
       - name: Deploy Cloud Functions (event)
@@ -227,4 +238,5 @@ jobs:
           service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
           max_instance_count: 1     # Set to 1 for event triggers to avoid unnecessary costs
+          service_timeout: ${{ inputs.event_timeout }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
