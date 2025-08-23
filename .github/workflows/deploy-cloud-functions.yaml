@@ -51,8 +51,8 @@ on:
         required: false
         type: string
         default: './'
-      max_instance_count:
-        description: '関数の最大インスタンス数'
+      http_max_instance_count:
+        description: 'HTTPトリガー関数の最大インスタンス数'
         required: false
         type: number
         default: 1
@@ -219,7 +219,7 @@ jobs:
           entry_point: ${{ inputs.http_entry_point }}
           service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
-          max_instance_count: ${{ inputs.max_instance_count }}
+          max_instance_count: ${{ inputs.http_max_instance_count }}
           service_timeout: ${{ inputs.http_timeout }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
 
