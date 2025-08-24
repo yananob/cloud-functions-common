@@ -206,7 +206,7 @@ jobs:
           parent: false
           destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}'
 
-      - name: 'Update Cache-Control metadata for JS files'
+      - name: 'Update Cache-Control metadata for static files'
         if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
         shell: bash
         run: |
