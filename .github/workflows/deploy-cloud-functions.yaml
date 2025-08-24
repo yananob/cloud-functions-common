@@ -210,7 +210,7 @@ jobs:
         if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
         shell: bash
         run: |
-          gcloud storage objects update gs://oml-static/**/* --cache-control="no-cache,no-store,must-revalidate"
+          gcloud storage objects update gs://${{ inputs.gcs_bucket_name }}/**/* --cache-control="no-cache,no-store,must-revalidate"
 
       - name: Deploy Cloud Functions (http)
         if: inputs.deploy_http_trigger
