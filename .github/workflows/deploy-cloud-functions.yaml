@@ -116,6 +116,11 @@ on:
         required: false
         type: string
         default: '-event'
+      build_environment_variables:
+        description: 'ビルド時環境変数を KEY=VALUE,KEY2=VALUE2 の形式で渡します'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: 'read'
@@ -228,6 +233,7 @@ jobs:
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+          build_environment_variables: ${{ inputs.build_environment_variables }}
 
       - name: Deploy Cloud Functions (event)
         if: inputs.deploy_event_trigger
@@ -247,3 +253,4 @@ jobs:
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.event_timeout }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+          build_environment_variables: ${{ inputs.build_environment_variables }}
