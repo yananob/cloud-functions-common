@@ -1,0 +1,93 @@
+name: Remove Cloud Functions
+
+on:
+  workflow_call:
+    inputs:
+      function_name:
+        description: 'Cloud Functionの名前'
+        required: true
+        type: string
+      project_id:
+        description: '関数がデプロイされているGoogle CloudプロジェクトID'
+        required: true
+        type: string
+      region:
+        description: '関数が配置されているGoogle Cloudリージョン'
+        required: true
+        type: string
+      service_account_name:
+        description: 'サービスアカウント名（例: my-sa-name）'
+        required: true
+        type: string
+      gcp_project_number:
+        description: 'Google Cloudプロジェクト番号（Workload Identity用）'
+        required: true
+        type: string
+      wip_pool_name:
+        description: 'Workload Identityプール名'
+        required: false
+        type: string
+        default: 'github-actions-pool'
+      wip_provider_name:
+        description: 'Workload Identityプロバイダー名'
+        required: false
+        type: string
+        default: 'github-provider'
+      remove_http_trigger:
+        description: 'HTTPトリガー関数を削除するかどうか'
+        required: false
+        type: boolean
+        default: true
+      remove_event_trigger:
+        description: 'イベントトリガー関数を削除するかどうか'
+        required: false
+        type: boolean
+        default: true
+      event_trigger_pubsub_topic_suffix:
+        description: 'イベントトリガーPub/Subトピックのサフィックス（function_nameに付加されます）'
+        required: false
+        type: string
+        default: '-event'
+
+permissions:
+  contents: 'read'
+  id-token: 'write'
+
+jobs:
+  remove:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Google Cloud認証
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
+
+      - name: Install gcloud
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Remove Cloud Function (http)
+        if: inputs.remove_http_trigger
+        run: |
+          if gcloud functions describe ${{ inputs.function_name }} --project=${{ inputs.project_id }} --region=${{ inputs.region }} >/dev/null 2>&1; then
+            gcloud functions delete ${{ inputs.function_name }} \
+              --project=${{ inputs.project_id }} \
+              --region=${{ inputs.region }} \
+              --quiet
+          else
+            echo "HTTP function '${{ inputs.function_name }}' not found. Skipping deletion."
+          fi
+
+      - name: Remove Cloud Function (event)
+        if: inputs.remove_event_trigger
+        run: |
+          EVENT_FUNCTION_NAME="${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
+          if gcloud functions describe ${EVENT_FUNCTION_NAME} --project=${{ inputs.project_id }} --region=${{ inputs.region }} >/dev/null 2>&1; then
+            gcloud functions delete ${EVENT_FUNCTION_NAME} \
+              --project=${{ inputs.project_id }} \
+              --region=${{ inputs.region }} \
+              --quiet
+          else
+            echo "Event function '${EVENT_FUNCTION_NAME}' not found. Skipping deletion."
+          fi

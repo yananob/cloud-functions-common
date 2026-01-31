@@ -254,7 +254,7 @@ jobs:
 
       - name: Deploy Cloud Functions (event)
         if: inputs.deploy_event_trigger
-        uses: 'google-github-actions/deploy-cloud-functions@v3'
+        uses: 'google-github-actions/deploy-cloud-functions@v4'
         timeout-minutes: 5
         with:
           name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
@@ -270,4 +270,5 @@ jobs:
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.event_timeout }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
-          environment_variables: ${{ inputs.environment_variables }}
+          environment_variables: |-
+           ${{ inputs.environment_variables }}
