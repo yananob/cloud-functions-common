@@ -235,6 +235,22 @@ jobs:
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
           build_environment_variables: ${{ inputs.build_environment_variables }}
 
+      - name: 'Allow Public Access to HTTP Function'
+        if: inputs.deploy_http_trigger && contains(inputs.build_environment_variables, 'APP_ENV=test')
+        shell: bash
+        run: |
+          # Cloud Functionsとしての権限付与
+          gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
+            --region=asia-northeast1 \
+            --member="allUsers" \
+            --role="roles/cloudfunctions.invoker"
+
+          # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
+          gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
+            --region=asia-northeast1 \
+            --member="allUsers" \
+            --role="roles/run.invoker"      
+
       - name: Deploy Cloud Functions (event)
         if: inputs.deploy_event_trigger
         uses: 'google-github-actions/deploy-cloud-functions@v3'
