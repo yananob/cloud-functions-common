@@ -241,13 +241,13 @@ jobs:
         run: |
           # Cloud Functionsとしての権限付与
           gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
-            --region=asia-northeast1 \
+            --region=${{ inputs.region }} \
             --member="allUsers" \
             --role="roles/cloudfunctions.invoker"
 
           # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
           gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
-            --region=asia-northeast1 \
+            --region=${{ inputs.region }} \
             --member="allUsers" \
             --role="roles/run.invoker"      
 
