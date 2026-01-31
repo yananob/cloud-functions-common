@@ -233,7 +233,8 @@ jobs:
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
           secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
-          build_environment_variables: ${{ inputs.build_environment_variables }}
+          build_environment_variables: |-
+           ${{ inputs.build_environment_variables }}
 
       - name: 'Allow Public Access to HTTP Function'
         if: inputs.deploy_http_trigger && contains(inputs.build_environment_variables, 'APP_ENV=test')
