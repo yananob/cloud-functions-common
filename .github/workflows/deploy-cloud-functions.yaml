@@ -203,110 +203,72 @@ jobs:
 
       - name: Mirror local directory to GCS
         if: inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
-        uses: nick-fields/retry@v3
+        uses: 'google-github-actions/upload-cloud-storage@v2'
         with:
-          timeout_minutes: 5
-          max_attempts: 3
-          command: |
-            gcloud storage cp -r ${{ inputs.gcs_source_dir }} gs://${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}
+          path: ${{ inputs.gcs_source_dir }}
+          parent: false
+          destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}'
 
       - name: 'Update Cache-Control metadata for static files'
         if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 5
-          max_attempts: 3
-          command: |
-            gcloud storage objects update gs://${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}**/* --cache-control="no-cache,no-store,must-revalidate"
+        shell: bash
+        run: |
+          gcloud storage objects update gs://${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}**/* --cache-control="no-cache,no-store,must-revalidate"
 
       - name: Deploy Cloud Functions (http)
         if: inputs.deploy_http_trigger
-        uses: nick-fields/retry@v3
+        uses: 'google-github-actions/deploy-cloud-functions@v4'
+        timeout-minutes: 5
         with:
-          timeout_minutes: 10
-          max_attempts: 3
-          command: |
-            SECRETS_ARG=""
-            if [ -n "${{ steps.prep_secrets.outputs.formatted_secrets }}" ]; then
-              SECRETS_ARG="--set-secrets=${{ steps.prep_secrets.outputs.formatted_secrets }}"
-            fi
+          name: ${{ inputs.function_name }}
+          project_id: ${{ inputs.project_id }}
+          region: ${{ inputs.region }}
+          runtime: ${{ inputs.runtime }}
+          entry_point: ${{ inputs.http_entry_point }}
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
+          source_dir: ${{ inputs.source_dir }}
+          max_instance_count: ${{ inputs.http_max_instance_count }}
+          memory: ${{ inputs.memory }}
+          service_timeout: ${{ inputs.http_timeout }}
+          secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+          environment_variables: |-
+           ${{ inputs.environment_variables }}
 
-            ENV_VARS_ARG=""
-            if [ -n "${{ inputs.environment_variables }}" ]; then
-              ENV_VARS_ARG="--set-env-vars=${{ inputs.environment_variables }}"
-            fi
-
-            gcloud functions deploy ${{ inputs.function_name }} \
-              --gen2 \
-              --project=${{ inputs.project_id }} \
-              --region=${{ inputs.region }} \
-              --runtime=${{ inputs.runtime }} \
-              --entry-point=${{ inputs.http_entry_point }} \
-              --source=${{ inputs.source_dir }} \
-              --service-account=${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com \
-              --max-instances=${{ inputs.http_max_instance_count }} \
-              --memory=${{ inputs.memory }} \
-              --timeout=${{ inputs.http_timeout }} \
-              $SECRETS_ARG \
-              $ENV_VARS_ARG \
-              --trigger-http \
-              --quiet
-
-      - name: 'Allow Public Access (Cloud Functions)'
+      - name: 'Allow Public Access to HTTP Function'
         if: inputs.deploy_http_trigger && contains(inputs.environment_variables, 'APP_ENV=test')
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 2
-          max_attempts: 3
-          command: |
-            gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
-              --project=${{ inputs.project_id }} \
-              --region=${{ inputs.region }} \
-              --member="allUsers" \
-              --role="roles/cloudfunctions.invoker"
+        shell: bash
+        run: |
+          # Cloud Functionsとしての権限付与
+          gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
+            --project=${{ inputs.project_id }} \
+            --region=${{ inputs.region }} \
+            --member="allUsers" \
+            --role="roles/cloudfunctions.invoker"
 
-      - name: 'Allow Public Access (Cloud Run)'
-        if: inputs.deploy_http_trigger && contains(inputs.environment_variables, 'APP_ENV=test')
-        uses: nick-fields/retry@v3
-        with:
-          timeout_minutes: 2
-          max_attempts: 3
-          command: |
-            gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
-              --project=${{ inputs.project_id }} \
-              --region=${{ inputs.region }} \
-              --member="allUsers" \
-              --role="roles/run.invoker"
+          # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
+          gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
+            --project=${{ inputs.project_id }} \
+            --region=${{ inputs.region }} \
+            --member="allUsers" \
+            --role="roles/run.invoker"
 
       - name: Deploy Cloud Functions (event)
         if: inputs.deploy_event_trigger
-        uses: nick-fields/retry@v3
+        uses: 'google-github-actions/deploy-cloud-functions@v4'
+        timeout-minutes: 5
         with:
-          timeout_minutes: 10
-          max_attempts: 3
-          command: |
-            SECRETS_ARG=""
-            if [ -n "${{ steps.prep_secrets.outputs.formatted_secrets }}" ]; then
-              SECRETS_ARG="--set-secrets=${{ steps.prep_secrets.outputs.formatted_secrets }}"
-            fi
-
-            ENV_VARS_ARG=""
-            if [ -n "${{ inputs.environment_variables }}" ]; then
-              ENV_VARS_ARG="--set-env-vars=${{ inputs.environment_variables }}"
-            fi
-
-            gcloud functions deploy ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }} \
-              --gen2 \
-              --project=${{ inputs.project_id }} \
-              --region=${{ inputs.region }} \
-              --runtime=${{ inputs.runtime }} \
-              --entry-point=${{ inputs.event_entry_point }} \
-              --source=${{ inputs.source_dir }} \
-              --service-account=${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com \
-              --max-instances=1 \
-              --memory=${{ inputs.memory }} \
-              --timeout=${{ inputs.event_timeout }} \
-              $SECRETS_ARG \
-              $ENV_VARS_ARG \
-              --trigger-topic=projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }} \
-              --quiet
+          name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
+          project_id: ${{ inputs.project_id }}
+          region: ${{ inputs.region }}
+          runtime: ${{ inputs.runtime }}
+          entry_point: ${{ inputs.event_entry_point }}
+          event_trigger_type: google.cloud.pubsub.topic.v1.messagePublished
+          event_trigger_pubsub_topic: projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
+          source_dir: ${{ inputs.source_dir }}
+          max_instance_count: 1
+          memory: ${{ inputs.memory }}
+          service_timeout: ${{ inputs.event_timeout }}
+          secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+          environment_variables: |-
+           ${{ inputs.environment_variables }}
