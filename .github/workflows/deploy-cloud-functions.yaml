@@ -127,17 +127,14 @@ permissions:
   id-token: 'write'
 
 jobs:
-  deploy:
+  init:
+    name: Prepare Deployment
     runs-on: ubuntu-latest
+    outputs:
+      formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
     env:
-      # Determine the project ID for secrets. Use inputs.secrets_project_id if provided, otherwise default to inputs.project_id
       SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          submodules: 'true'
-          
       - name: Google Cloud認証
         id: 'auth'
         uses: 'google-github-actions/auth@v2'
@@ -147,64 +144,54 @@ jobs:
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
-        shell: bash # ここは必ずbashに設定
+        shell: bash
         run: |
+          echo "::group::Preparing secrets configuration"
           secrets_config_input="${{ inputs.secrets_config }}"
           secrets_array=()
-          
-          # echo "--- Debugging secrets_array population ---"
-          echo "secrets_config_input received: '${secrets_config_input}'"
-
-          # ここを readarray -t に変更します
-          # -t オプションは、末尾の改行文字を削除して要素を読み込みます
           readarray -t secrets_array <<< "$secrets_config_input"
           
-          # echo "secrets_array contents:"
-          # printf 'Array element: "%s"\n' "${secrets_array[@]}"
-          # echo "Array length: ${#secrets_array[@]}"
-          # echo "--- End Debugging secrets_array ---"
-
           secrets_output=""
           first_secret=true
 
-          # echo "--- Debugging loop execution ---"
           for secret_name in "${secrets_array[@]}"; do
-            # readarray -t は空行を読み込む可能性があるため、引き続きスキップロジックは重要
             if [ -z "$secret_name" ]; then
-              echo "Skipping empty line."
               continue
             fi
 
-            echo "Processing secret_name: '$secret_name'"
+            echo "Adding secret: $secret_name"
 
             if [ "$first_secret" = false ]; then
               secrets_output="${secrets_output},"
-              # echo "Added comma. secrets_output is now: '$secrets_output'"
             fi
 
             secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
-            # echo "Current secrets_output inside loop: '$secrets_output'"
-            
             first_secret=false
           done
-          echo "--- End Debugging loop execution ---"
           
-          echo "secrets_output after loop (main shell before GITHUB_OUTPUT): '$secrets_output'"
-
           echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
           echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
 
-          # echo "--- Debugging GITHUB_OUTPUT ---"
-          # echo "Formatted Secrets Output Check:"
-          # echo "--- End Debugging GITHUB_OUTPUT ---"
+  upload-static:
+    name: Upload Static Files to GCS
+    if: inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
 
-      # - name: Check secrets
-      #   shell: bash
-      #   run: echo "${{ steps.prep_secrets.outputs.formatted_secrets }}"
+      - name: Google Cloud認証
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: Mirror local directory to GCS
-        if: inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
         uses: 'google-github-actions/upload-cloud-storage@v2'
         with:
           path: ${{ inputs.gcs_source_dir }}
@@ -212,15 +199,45 @@ jobs:
           destination: '${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}'
 
       - name: 'Update Cache-Control metadata for static files'
-        if: inputs.disable_gcs_cache && inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
+        if: inputs.disable_gcs_cache
         shell: bash
         run: |
-          gcloud storage objects update gs://${{ inputs.gcs_bucket_name }}/**/* --cache-control="no-cache,no-store,must-revalidate"
+          gcloud storage objects update gs://${{ inputs.gcs_bucket_name }}/${{ inputs.gcs_bucket_path }}**/* --cache-control="no-cache,no-store,must-revalidate"
+
+  deploy-http:
+    name: Deploy HTTP Function
+    needs: init
+    if: inputs.deploy_http_trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Google Cloud認証
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
+
+      - name: 'Deployment Configuration Summary'
+        shell: bash
+        run: |
+          echo "::group::Deployment Configuration (HTTP)"
+          echo "Function Name: ${{ inputs.function_name }}"
+          echo "Project ID: ${{ inputs.project_id }}"
+          echo "Region: ${{ inputs.region }}"
+          echo "Runtime: ${{ inputs.runtime }}"
+          echo "Entry Point: ${{ inputs.http_entry_point }}"
+          echo "Max Instances: ${{ inputs.http_max_instance_count }}"
+          echo "Timeout: ${{ inputs.http_timeout }}"
+          echo "Memory: ${{ inputs.memory }}"
+          echo "::endgroup::"
 
       - name: Deploy Cloud Functions (http)
-        if: inputs.deploy_http_trigger
         uses: 'google-github-actions/deploy-cloud-functions@v4'
-        timeout-minutes: 5
         with:
           name: ${{ inputs.function_name }}
           project_id: ${{ inputs.project_id }}
@@ -232,30 +249,62 @@ jobs:
           max_instance_count: ${{ inputs.http_max_instance_count }}
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
-          secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+          secrets: ${{ needs.init.outputs.formatted_secrets }}
           environment_variables: |-
            ${{ inputs.environment_variables }}
 
       - name: 'Allow Public Access to HTTP Function'
-        if: inputs.deploy_http_trigger && contains(inputs.environment_variables, 'APP_ENV=test')
+        if: contains(inputs.environment_variables, 'APP_ENV=test')
         shell: bash
         run: |
           # Cloud Functionsとしての権限付与
           gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
+            --project=${{ inputs.project_id }} \
             --region=${{ inputs.region }} \
             --member="allUsers" \
             --role="roles/cloudfunctions.invoker"
 
           # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
           gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
+            --project=${{ inputs.project_id }} \
             --region=${{ inputs.region }} \
             --member="allUsers" \
-            --role="roles/run.invoker"      
+            --role="roles/run.invoker"
+
+  deploy-event:
+    name: Deploy Event Function
+    needs: init
+    if: inputs.deploy_event_trigger
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: 'true'
+
+      - name: Google Cloud認証
+        id: 'auth'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
+
+      - name: 'Deployment Configuration Summary'
+        shell: bash
+        run: |
+          echo "::group::Deployment Configuration (Event)"
+          echo "Function Name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
+          echo "Project ID: ${{ inputs.project_id }}"
+          echo "Region: ${{ inputs.region }}"
+          echo "Runtime: ${{ inputs.runtime }}"
+          echo "Entry Point: ${{ inputs.event_entry_point }}"
+          echo "Timeout: ${{ inputs.event_timeout }}"
+          echo "Pub/Sub Topic: projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
+          echo "Memory: ${{ inputs.memory }}"
+          echo "::endgroup::"
 
       - name: Deploy Cloud Functions (event)
-        if: inputs.deploy_event_trigger
         uses: 'google-github-actions/deploy-cloud-functions@v4'
-        timeout-minutes: 5
         with:
           name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
           project_id: ${{ inputs.project_id }}
@@ -266,9 +315,9 @@ jobs:
           event_trigger_pubsub_topic: projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
           service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
-          max_instance_count: 1     # Set to 1 for event triggers to avoid unnecessary costs
+          max_instance_count: 1
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.event_timeout }}
-          secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+          secrets: ${{ needs.init.outputs.formatted_secrets }}
           environment_variables: |-
            ${{ inputs.environment_variables }}
