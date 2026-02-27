@@ -106,6 +106,13 @@ on:
         required: false
         type: string
         default: ''
+    secrets:
+      GCP_PROJECT_ID:
+        required: true
+      GCP_REGION:
+        required: true
+      GCP_PROJECT_NUMBER:
+        required: true
 
 permissions:
   contents: 'read'
