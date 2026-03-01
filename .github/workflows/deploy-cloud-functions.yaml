@@ -140,13 +140,15 @@ jobs:
         run: |
           echo "::group::Preparing secrets configuration"
           secrets_config_input="${{ inputs.secrets_config }}"
-          secrets_array=()
-          readarray -t secrets_array <<< "$secrets_config_input"
           
           secrets_output=""
           first_secret=true
 
-          for secret_name in "${secrets_array[@]}"; do
+          # tr -d '\r' to handle CRLF
+          # while read -r to process line by line
+          # xargs to trim whitespace
+          while read -r line; do
+            secret_name=$(echo "$line" | xargs)
             if [ -z "$secret_name" ]; then
               continue
             fi
@@ -159,7 +161,7 @@ jobs:
 
             secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
             first_secret=false
-          done
+          done <<< "$(echo "$secrets_config_input" | tr -d '\r')"
           
           echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
           echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
