@@ -178,7 +178,7 @@ jobs:
               secrets_output="${secrets_output},"
             fi
 
-            secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
+            secrets_output="${secrets_output}${secret_name}=projects/$SECRETS_PROJECT_FOR_CONSTRUCTION/secrets/${secret_name}/versions/latest"
             first_secret=false
           done
           
