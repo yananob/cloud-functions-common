@@ -125,12 +125,12 @@ on:
       GCP_PROJECT_ID:
         description: 'Google CloudプロジェクトID'
         required: true
-      # GCP_REGION:
-      #   description: 'Google Cloudリージョン'
-      #   required: true
-      # GCP_PROJECT_NUMBER:
-      #   description: 'Google Cloudプロジェクト番号'
-      #   required: true
+      GCP_REGION:
+        description: 'Google Cloudリージョン'
+        required: true
+      GCP_PROJECT_NUMBER:
+        description: 'Google Cloudプロジェクト番号'
+        required: true
 
 permissions:
   contents: 'read'
