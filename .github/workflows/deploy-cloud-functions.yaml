@@ -144,9 +144,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
-    env:
-      # SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
-      SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ secrets.GCP_PROJECT_ID }}
     steps:
       - name: Google Cloud認証
         id: 'auth'
@@ -157,6 +154,9 @@ jobs:
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
+        env:
+          # SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
+          SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ secrets.GCP_PROJECT_ID }}
         shell: bash
         run: |
           echo "::group::Preparing secrets configuration"
@@ -178,7 +178,7 @@ jobs:
               secrets_output="${secrets_output},"
             fi
 
-            secrets_output="${secrets_output}${secret_name}=projects/$SECRETS_PROJECT_FOR_CONSTRUCTION/secrets/${secret_name}/versions/latest"
+            secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
             first_secret=false
           done
           
