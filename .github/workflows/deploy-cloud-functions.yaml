@@ -145,7 +145,7 @@ jobs:
     outputs:
       formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
     env:
-      # SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || secrets.GCP_PROJECT_ID }}
+      # SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
       SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ secrets.GCP_PROJECT_ID }}
     steps:
       - name: Google Cloud認証
@@ -153,7 +153,7 @@ jobs:
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
@@ -202,7 +202,7 @@ jobs:
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: Mirror local directory to GCS
         uses: 'google-github-actions/upload-cloud-storage@v2'
@@ -233,14 +233,14 @@ jobs:
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: 'Deployment Configuration Summary'
         shell: bash
         run: |
           echo "::group::Deployment Configuration (HTTP)"
           echo "Function Name: ${{ inputs.function_name }}"
-          echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
+          echo "Project ID: ${{ inputs.project_id }}"
           echo "Region: ${{ secrets.GCP_REGION }}"
           echo "Runtime: ${{ inputs.runtime }}"
           echo "Entry Point: ${{ inputs.http_entry_point }}"
@@ -253,11 +253,11 @@ jobs:
         uses: 'google-github-actions/deploy-cloud-functions@v4'
         with:
           name: ${{ inputs.function_name }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ inputs.project_id }}
           region: ${{ secrets.GCP_REGION }}
           runtime: ${{ inputs.runtime }}
           entry_point: ${{ inputs.http_entry_point }}
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
           max_instance_count: ${{ inputs.http_max_instance_count }}
           memory: ${{ inputs.memory }}
@@ -272,14 +272,14 @@ jobs:
         run: |
           # Cloud Functionsとしての権限付与
           gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --project=${{ inputs.project_id }} \
             --region=${{ secrets.GCP_REGION }} \
             --member="allUsers" \
             --role="roles/cloudfunctions.invoker"
 
           # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
           gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --project=${{ inputs.project_id }} \
             --region=${{ secrets.GCP_REGION }} \
             --member="allUsers" \
             --role="roles/run.invoker"
@@ -300,19 +300,19 @@ jobs:
         uses: 'google-github-actions/auth@v2'
         with:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: 'Deployment Configuration Summary'
         shell: bash
         run: |
           echo "::group::Deployment Configuration (Event)"
           echo "Function Name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
-          echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
+          echo "Project ID: ${{ inputs.project_id }}"
           echo "Region: ${{ secrets.GCP_REGION }}"
           echo "Runtime: ${{ inputs.runtime }}"
           echo "Entry Point: ${{ inputs.event_entry_point }}"
           echo "Timeout: ${{ inputs.event_timeout }}"
-          echo "Pub/Sub Topic: projects/${{ secrets.GCP_PROJECT_ID }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
+          echo "Pub/Sub Topic: projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Memory: ${{ inputs.memory }}"
           echo "::endgroup::"
 
@@ -320,13 +320,13 @@ jobs:
         uses: 'google-github-actions/deploy-cloud-functions@v4'
         with:
           name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
+          project_id: ${{ inputs.project_id }}
           region: ${{ secrets.GCP_REGION }}
           runtime: ${{ inputs.runtime }}
           entry_point: ${{ inputs.event_entry_point }}
           event_trigger_type: google.cloud.pubsub.topic.v1.messagePublished
-          event_trigger_pubsub_topic: projects/${{ secrets.GCP_PROJECT_ID }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          event_trigger_pubsub_topic: projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
           max_instance_count: 1
           memory: ${{ inputs.memory }}
