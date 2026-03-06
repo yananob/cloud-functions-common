@@ -140,28 +140,36 @@ jobs:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           echo "::group::Preparing secrets configuration"
-
-          # Remove carriage returns and split by newline, then trim whitespace
-          # 使用する変数が空の場合でもエラーにならないように調整
-          mapfile -t secrets_array < <(echo "$SECRETS_CONFIG" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' || true)
           
+          if [ -z "$GCP_PROJECT_ID" ]; then
+            echo "Warning: GCP_PROJECT_ID is empty"
+          fi
+
+          # Read SECRETS_CONFIG line by line and build the output string
           secrets_output=""
-          first_secret=true
-
-          for secret_name in "${secrets_array[@]}"; do
+          while IFS= read -r line || [[ -n "$line" ]]; do
+            # Trim whitespace
+            secret_name=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [ -z "$secret_name" ] && continue
+            
             echo "Adding secret: $secret_name"
-
-            if [ "$first_secret" = false ]; then
+            if [ -n "$secrets_output" ]; then
               secrets_output="${secrets_output},"
             fi
-
             secrets_output="${secrets_output}${secret_name}=projects/${GCP_PROJECT_ID}/secrets/${secret_name}/versions/latest"
-            first_secret=false
-          done
+          done <<< "$SECRETS_CONFIG"
           
+          # Set the output for the step
           echo "formatted_secrets=$secrets_output" >> "$GITHUB_OUTPUT"
-          echo "Final formatted_secrets: $secrets_output"
+          
+          # Debug output
+          echo "Generated secrets_output length: ${#secrets_output}"
+          echo "Final formatted_secrets (masked if contains secrets): $secrets_output"
           echo "::endgroup::"
+
+      - name: Verify Step Output
+        run: |
+          echo "Step output 'formatted_secrets' is: ${{ steps.prep_secrets.outputs.formatted_secrets }}"
 
   upload-static:
     name: Upload Static Files to GCS
