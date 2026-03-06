@@ -123,7 +123,8 @@ jobs:
     name: Prepare Deployment
     runs-on: ubuntu-latest
     outputs:
-      formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+      formatted_secrets: "${{ steps.prep_secrets.outputs.formatted_secrets }}"
+      test_output: "testing_connection"
     steps:
       - name: Google Cloud認証
         id: 'auth'
@@ -231,6 +232,7 @@ jobs:
           echo "Max Instances: ${{ inputs.http_max_instance_count }}"
           echo "Timeout: ${{ inputs.http_timeout }}"
           echo "Memory: ${{ inputs.memory }}"
+          echo "Test Output (Job Connection): ${{ needs.init.outputs.test_output }}"
           echo "Formatted Secrets (Job Output): ${{ needs.init.outputs.formatted_secrets }}"
           echo "::endgroup::"
 
