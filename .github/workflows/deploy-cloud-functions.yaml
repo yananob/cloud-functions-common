@@ -164,7 +164,7 @@ jobs:
           else
             echo "✅ シークレットは届いてるみたいや（中身は見せへんけどな）"
           fi
-          if [ -z "${{ SECRETS_PROJECT_FOR_CONSTRUCTION }}" ]; then
+          if [ -z "${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}" ]; then
             echo "❌ シークレット2が空っぽやで！"
           else
             echo "✅ シークレット2は届いてるみたいや（中身は見せへんけどな）"
