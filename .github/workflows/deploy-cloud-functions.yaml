@@ -163,6 +163,7 @@ jobs:
             echo "❌ シークレットが空っぽやで！"
           else
             echo "✅ シークレットは届いてるみたいや（中身は見せへんけどな）"
+            echo "${{ secrets.GCP_PROJECT_ID }}"
           fi
           if [ -z "${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}" ]; then
             echo "❌ シークレット2が空っぽやで！"
