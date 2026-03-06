@@ -159,17 +159,17 @@ jobs:
           SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.project_id }}  # ここでsecretsが見れないみたい
         shell: bash
         run: |
-          if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
-            echo "❌ シークレットが空っぽやで！"
-          else
-            echo "✅ シークレットは届いてるみたいや（中身は見せへんけどな）"
-            echo "${{ secrets.GCP_PROJECT_ID }}"
-          fi
-          if [ -z "${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}" ]; then
-            echo "❌ シークレット2が空っぽやで！"
-          else
-            echo "✅ シークレット2は届いてるみたいや（中身は見せへんけどな）"
-          fi
+          # if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
+          #   echo "❌ シークレットが空っぽやで！"
+          # else
+          #   echo "✅ シークレットは届いてるみたいや（中身は見せへんけどな）"
+          #   echo "${{ secrets.GCP_PROJECT_ID }}"
+          # fi
+          # if [ -z "${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}" ]; then
+          #   echo "❌ シークレット2が空っぽやで！"
+          # else
+          #   echo "✅ シークレット2は届いてるみたいや（中身は見せへんけどな）"
+          # fi
 
           echo "::group::Preparing secrets configuration"
           secrets_config_input="${{ inputs.secrets_config }}"
