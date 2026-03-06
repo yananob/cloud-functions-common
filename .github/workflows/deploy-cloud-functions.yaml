@@ -123,7 +123,8 @@ jobs:
     name: Prepare Deployment
     runs-on: ubuntu-latest
     outputs:
-      formatted_secrets: "${{ steps.prep_secrets.outputs.formatted_secrets }}"
+      # シークレットを含む文字列を安全に渡すため Base64 エンコードを使用
+      formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets_base64 }}
       test_output: "testing_connection"
     steps:
       - name: Google Cloud認証
@@ -160,17 +161,18 @@ jobs:
             secrets_output="${secrets_output}${secret_name}=projects/${GCP_PROJECT_ID}/secrets/${secret_name}/versions/latest"
           done <<< "$SECRETS_CONFIG"
           
-          # Set the output for the step
-          echo "formatted_secrets=$secrets_output" >> "$GITHUB_OUTPUT"
+          # Set the output for the step as Base64 to avoid filtering
+          echo "formatted_secrets_base64=$(echo -n "$secrets_output" | base64 -w 0)" >> "$GITHUB_OUTPUT"
           
           # Debug output
           echo "Generated secrets_output length: ${#secrets_output}"
-          echo "Final formatted_secrets (masked if contains secrets): $secrets_output"
+          # Base64の結果も一応出す（デバッグ用）
+          echo "Generated Base64 length: $(echo -n "$secrets_output" | base64 -w 0 | wc -c)"
           echo "::endgroup::"
 
       - name: Verify Step Output
         run: |
-          echo "Step output 'formatted_secrets' is: ${{ steps.prep_secrets.outputs.formatted_secrets }}"
+          echo "Step output (Base64) length: ${#{{ steps.prep_secrets.outputs.formatted_secrets_base64 }}}"
 
   upload-static:
     name: Upload Static Files to GCS
@@ -222,6 +224,7 @@ jobs:
 
       - name: 'Deployment Configuration Summary'
         shell: bash
+        id: decode_secrets
         run: |
           echo "::group::Deployment Configuration (HTTP)"
           echo "Function Name: ${{ inputs.function_name }}"
@@ -233,7 +236,16 @@ jobs:
           echo "Timeout: ${{ inputs.http_timeout }}"
           echo "Memory: ${{ inputs.memory }}"
           echo "Test Output (Job Connection): ${{ needs.init.outputs.test_output }}"
-          echo "Formatted Secrets (Job Output): ${{ needs.init.outputs.formatted_secrets }}"
+          
+          # Decode Base64 value
+          if [ -n "${{ needs.init.outputs.formatted_secrets }}" ]; then
+            DECODED_SECRETS=$(echo "${{ needs.init.outputs.formatted_secrets }}" | base64 -d)
+            echo "secrets_list=$DECODED_SECRETS" >> "$GITHUB_OUTPUT"
+            echo "Formatted Secrets (Job Output Decoded): $DECODED_SECRETS"
+          else
+            echo "secrets_list=" >> "$GITHUB_OUTPUT"
+            echo "Formatted Secrets: (none)"
+          fi
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (http)
@@ -249,7 +261,7 @@ jobs:
           max_instance_count: ${{ inputs.http_max_instance_count }}
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
-          secrets: ${{ needs.init.outputs.formatted_secrets }}
+          secrets: ${{ steps.decode_secrets.outputs.secrets_list }}
           environment_variables: |-
            ${{ inputs.environment_variables }}
 
@@ -291,6 +303,7 @@ jobs:
 
       - name: 'Deployment Configuration Summary'
         shell: bash
+        id: decode_secrets_event
         run: |
           echo "::group::Deployment Configuration (Event)"
           echo "Function Name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
@@ -301,7 +314,17 @@ jobs:
           echo "Timeout: ${{ inputs.event_timeout }}"
           echo "Pub/Sub Topic: projects/${{ secrets.GCP_PROJECT_ID }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Memory: ${{ inputs.memory }}"
-          echo "Formatted Secrets (Job Output): ${{ needs.init.outputs.formatted_secrets }}"
+          echo "Test Output (Job Connection): ${{ needs.init.outputs.test_output }}"
+
+          # Decode Base64 value
+          if [ -n "${{ needs.init.outputs.formatted_secrets }}" ]; then
+            DECODED_SECRETS=$(echo "${{ needs.init.outputs.formatted_secrets }}" | base64 -d)
+            echo "secrets_list=$DECODED_SECRETS" >> "$GITHUB_OUTPUT"
+            echo "Formatted Secrets (Job Output Decoded): $DECODED_SECRETS"
+          else
+            echo "secrets_list=" >> "$GITHUB_OUTPUT"
+            echo "Formatted Secrets: (none)"
+          fi
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (event)
@@ -319,6 +342,6 @@ jobs:
           max_instance_count: 1
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.event_timeout }}
-          secrets: ${{ needs.init.outputs.formatted_secrets }}
+          secrets: ${{ steps.decode_secrets_event.outputs.secrets_list }}
           environment_variables: |-
            ${{ inputs.environment_variables }}
