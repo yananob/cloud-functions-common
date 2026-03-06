@@ -156,7 +156,7 @@ jobs:
         id: prep_secrets
         env:
           # SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
-          SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ secrets.GCP_PROJECT_ID }}  # ここでsecretsが見れないみたい
+          SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.project_id }}  # ここでsecretsが見れないみたい
         shell: bash
         run: |
           if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
