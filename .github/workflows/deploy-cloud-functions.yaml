@@ -16,10 +16,10 @@ on:
         description: '関数をデプロイするGoogle CloudプロジェクトID'
         required: true
         type: string
-      region:
-        description: '関数を配置するGoogle Cloudリージョン'
-        required: true
-        type: string
+      # region:
+      #   description: '関数を配置するGoogle Cloudリージョン'
+      #   required: true
+      #   type: string
       gcp_project_number:
         description: 'Google Cloudプロジェクト番号（Workload Identity用）'
         required: true
@@ -241,7 +241,7 @@ jobs:
           echo "::group::Deployment Configuration (HTTP)"
           echo "Function Name: ${{ inputs.function_name }}"
           echo "Project ID: ${{ inputs.project_id }}"
-          echo "Region: ${{ inputs.region }}"
+          echo "Region: ${{ secrets.GCP_REGION }}"
           echo "Runtime: ${{ inputs.runtime }}"
           echo "Entry Point: ${{ inputs.http_entry_point }}"
           echo "Max Instances: ${{ inputs.http_max_instance_count }}"
@@ -254,7 +254,7 @@ jobs:
         with:
           name: ${{ inputs.function_name }}
           project_id: ${{ inputs.project_id }}
-          region: ${{ inputs.region }}
+          region: ${{ secrets.GCP_REGION }}
           runtime: ${{ inputs.runtime }}
           entry_point: ${{ inputs.http_entry_point }}
           service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
@@ -273,14 +273,14 @@ jobs:
           # Cloud Functionsとしての権限付与
           gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
             --project=${{ inputs.project_id }} \
-            --region=${{ inputs.region }} \
+            --region=${{ secrets.GCP_REGION }} \
             --member="allUsers" \
             --role="roles/cloudfunctions.invoker"
 
           # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
           gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
             --project=${{ inputs.project_id }} \
-            --region=${{ inputs.region }} \
+            --region=${{ secrets.GCP_REGION }} \
             --member="allUsers" \
             --role="roles/run.invoker"
 
@@ -308,7 +308,7 @@ jobs:
           echo "::group::Deployment Configuration (Event)"
           echo "Function Name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Project ID: ${{ inputs.project_id }}"
-          echo "Region: ${{ inputs.region }}"
+          echo "Region: ${{ secrets.GCP_REGION }}"
           echo "Runtime: ${{ inputs.runtime }}"
           echo "Entry Point: ${{ inputs.event_entry_point }}"
           echo "Timeout: ${{ inputs.event_timeout }}"
@@ -321,7 +321,7 @@ jobs:
         with:
           name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
           project_id: ${{ inputs.project_id }}
-          region: ${{ inputs.region }}
+          region: ${{ secrets.GCP_REGION }}
           runtime: ${{ inputs.runtime }}
           entry_point: ${{ inputs.event_entry_point }}
           event_trigger_type: google.cloud.pubsub.topic.v1.messagePublished
