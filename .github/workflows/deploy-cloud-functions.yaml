@@ -24,10 +24,10 @@ on:
         description: 'Google Cloudプロジェクト番号（Workload Identity用）'
         required: true
         type: string
-      secrets_project_id:
-        description: 'シークレットが格納されているGoogle CloudプロジェクトID（未設定時はfunctionのproject_idを使用）'
-        required: false
-        type: string
+      # secrets_project_id:
+      #   description: 'シークレットが格納されているGoogle CloudプロジェクトID（未設定時はfunctionのproject_idを使用）'
+      #   required: false
+      #   type: string
       # to
       wip_pool_name:
         description: 'Workload Identityプール名'
