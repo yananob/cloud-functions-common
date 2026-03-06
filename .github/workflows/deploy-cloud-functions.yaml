@@ -7,8 +7,20 @@ on:
         description: 'Cloud Functionの名前'
         required: true
         type: string
+      project_id:
+        description: '関数をデプロイするGoogle CloudプロジェクトID'
+        required: true
+        type: string
+      region:
+        description: '関数を配置するGoogle Cloudリージョン'
+        required: true
+        type: string
       service_account_name:
         description: 'サービスアカウント名（例: my-sa-name）'
+        required: true
+        type: string
+      gcp_project_number:
+        description: 'Google Cloudプロジェクト番号（Workload Identity用）'
         required: true
         type: string
       wip_pool_name:
@@ -21,7 +33,10 @@ on:
         required: false
         type: string
         default: 'github-provider'
-
+      secrets_project_id:
+        description: 'シークレットが格納されているGoogle CloudプロジェクトID（未設定時はfunctionのproject_idを使用）'
+        required: false
+        type: string
       secrets_config:
         description: 'シークレット名の複数行文字列（例: "SECRET_A\nSECRET_B"）'
         required: true
@@ -106,13 +121,6 @@ on:
         required: false
         type: string
         default: ''
-    secrets:
-      GCP_PROJECT_ID:
-        required: true
-      GCP_REGION:
-        required: true
-      GCP_PROJECT_NUMBER:
-        required: true
 
 permissions:
   contents: 'read'
@@ -123,58 +131,48 @@ jobs:
     name: Prepare Deployment
     runs-on: ubuntu-latest
     outputs:
-      # シークレットを含む文字列を安全に渡すため Base64 エンコードを使用
-      formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets_base64 }}
-      test_output: "testing_connection"
+      formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
+    env:
+      SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
     steps:
       - name: Google Cloud認証
         id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
-          workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
         shell: bash
-        env:
-          SECRETS_CONFIG: ${{ inputs.secrets_config }}
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           echo "::group::Preparing secrets configuration"
+          secrets_config_input="${{ inputs.secrets_config }}"
+          secrets_array=()
+          readarray -t secrets_array <<< "$secrets_config_input"
           
-          if [ -z "$GCP_PROJECT_ID" ]; then
-            echo "Warning: GCP_PROJECT_ID is empty"
-          fi
-
-          # Read SECRETS_CONFIG line by line and build the output string
           secrets_output=""
-          while IFS= read -r line || [[ -n "$line" ]]; do
-            # Trim whitespace
-            secret_name=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            [ -z "$secret_name" ] && continue
-            
+          first_secret=true
+
+          for secret_name in "${secrets_array[@]}"; do
+            if [ -z "$secret_name" ]; then
+              continue
+            fi
+
             echo "Adding secret: $secret_name"
-            if [ -n "$secrets_output" ]; then
+
+            if [ "$first_secret" = false ]; then
               secrets_output="${secrets_output},"
             fi
-            secrets_output="${secrets_output}${secret_name}=projects/${GCP_PROJECT_ID}/secrets/${secret_name}/versions/latest"
-          done <<< "$SECRETS_CONFIG"
-          
-          # Set the output for the step as Base64 to avoid filtering
-          echo "formatted_secrets_base64=$(echo -n "$secrets_output" | base64 -w 0)" >> "$GITHUB_OUTPUT"
-          
-          # Debug output
-          echo "Generated secrets_output length: ${#secrets_output}"
-          # Base64の結果も一応出す（デバッグ用）
-          echo "Generated Base64 length: $(echo -n "$secrets_output" | base64 -w 0 | wc -c)"
-          echo "::endgroup::"
 
-      - name: Verify Step Output
-        env:
-          B64_DATA: ${{ steps.prep_secrets.outputs.formatted_secrets_base64 }}
-        run: |
-          echo "Step output (Base64) length: ${#B64_DATA}"
+            secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
+            first_secret=false
+          done
+          
+          echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
+          echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "::endgroup::"
 
   upload-static:
     name: Upload Static Files to GCS
@@ -190,8 +188,8 @@ jobs:
         id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
-          workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: Mirror local directory to GCS
         uses: 'google-github-actions/upload-cloud-storage@v2'
@@ -221,49 +219,37 @@ jobs:
         id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
-          workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: 'Deployment Configuration Summary'
         shell: bash
-        id: decode_secrets
         run: |
           echo "::group::Deployment Configuration (HTTP)"
           echo "Function Name: ${{ inputs.function_name }}"
-          echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
-          echo "Region: ${{ secrets.GCP_REGION }}"
+          echo "Project ID: ${{ inputs.project_id }}"
+          echo "Region: ${{ inputs.region }}"
           echo "Runtime: ${{ inputs.runtime }}"
           echo "Entry Point: ${{ inputs.http_entry_point }}"
           echo "Max Instances: ${{ inputs.http_max_instance_count }}"
           echo "Timeout: ${{ inputs.http_timeout }}"
           echo "Memory: ${{ inputs.memory }}"
-          echo "Test Output (Job Connection): ${{ needs.init.outputs.test_output }}"
-          
-          # Decode Base64 value
-          if [ -n "${{ needs.init.outputs.formatted_secrets }}" ]; then
-            DECODED_SECRETS=$(echo "${{ needs.init.outputs.formatted_secrets }}" | base64 -d)
-            echo "secrets_list=$DECODED_SECRETS" >> "$GITHUB_OUTPUT"
-            echo "Formatted Secrets (Job Output Decoded): $DECODED_SECRETS"
-          else
-            echo "secrets_list=" >> "$GITHUB_OUTPUT"
-            echo "Formatted Secrets: (none)"
-          fi
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (http)
         uses: 'google-github-actions/deploy-cloud-functions@v4'
         with:
           name: ${{ inputs.function_name }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          region: ${{ secrets.GCP_REGION }}
+          project_id: ${{ inputs.project_id }}
+          region: ${{ inputs.region }}
           runtime: ${{ inputs.runtime }}
           entry_point: ${{ inputs.http_entry_point }}
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
           max_instance_count: ${{ inputs.http_max_instance_count }}
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
-          secrets: ${{ steps.decode_secrets.outputs.secrets_list }}
+          secrets: ${{ needs.init.outputs.formatted_secrets }}
           environment_variables: |-
            ${{ inputs.environment_variables }}
 
@@ -273,15 +259,15 @@ jobs:
         run: |
           # Cloud Functionsとしての権限付与
           gcloud functions add-iam-policy-binding ${{ inputs.function_name }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --region=${{ secrets.GCP_REGION }} \
+            --project=${{ inputs.project_id }} \
+            --region=${{ inputs.region }} \
             --member="allUsers" \
             --role="roles/cloudfunctions.invoker"
 
           # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
           gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --region=${{ secrets.GCP_REGION }} \
+            --project=${{ inputs.project_id }} \
+            --region=${{ inputs.region }} \
             --member="allUsers" \
             --role="roles/run.invoker"
 
@@ -300,50 +286,38 @@ jobs:
         id: 'auth'
         uses: 'google-github-actions/auth@v2'
         with:
-          workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          workload_identity_provider: 'projects/${{ inputs.gcp_project_number }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
 
       - name: 'Deployment Configuration Summary'
         shell: bash
-        id: decode_secrets_event
         run: |
           echo "::group::Deployment Configuration (Event)"
           echo "Function Name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
-          echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
-          echo "Region: ${{ secrets.GCP_REGION }}"
+          echo "Project ID: ${{ inputs.project_id }}"
+          echo "Region: ${{ inputs.region }}"
           echo "Runtime: ${{ inputs.runtime }}"
           echo "Entry Point: ${{ inputs.event_entry_point }}"
           echo "Timeout: ${{ inputs.event_timeout }}"
-          echo "Pub/Sub Topic: projects/${{ secrets.GCP_PROJECT_ID }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
+          echo "Pub/Sub Topic: projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Memory: ${{ inputs.memory }}"
-          echo "Test Output (Job Connection): ${{ needs.init.outputs.test_output }}"
-
-          # Decode Base64 value
-          if [ -n "${{ needs.init.outputs.formatted_secrets }}" ]; then
-            DECODED_SECRETS=$(echo "${{ needs.init.outputs.formatted_secrets }}" | base64 -d)
-            echo "secrets_list=$DECODED_SECRETS" >> "$GITHUB_OUTPUT"
-            echo "Formatted Secrets (Job Output Decoded): $DECODED_SECRETS"
-          else
-            echo "secrets_list=" >> "$GITHUB_OUTPUT"
-            echo "Formatted Secrets: (none)"
-          fi
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (event)
         uses: 'google-github-actions/deploy-cloud-functions@v4'
         with:
           name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          region: ${{ secrets.GCP_REGION }}
+          project_id: ${{ inputs.project_id }}
+          region: ${{ inputs.region }}
           runtime: ${{ inputs.runtime }}
           entry_point: ${{ inputs.event_entry_point }}
           event_trigger_type: google.cloud.pubsub.topic.v1.messagePublished
-          event_trigger_pubsub_topic: projects/${{ secrets.GCP_PROJECT_ID }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
+          event_trigger_pubsub_topic: projects/${{ inputs.project_id }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}
+          service_account: '${{ inputs.service_account_name }}@${{ inputs.project_id }}.iam.gserviceaccount.com'
           source_dir: ${{ inputs.source_dir }}
           max_instance_count: 1
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.event_timeout }}
-          secrets: ${{ steps.decode_secrets_event.outputs.secrets_list }}
+          secrets: ${{ needs.init.outputs.formatted_secrets }}
           environment_variables: |-
            ${{ inputs.environment_variables }}
