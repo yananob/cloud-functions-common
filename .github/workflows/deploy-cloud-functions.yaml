@@ -124,8 +124,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets }}
-    env:
-      SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ secrets.GCP_PROJECT_ID }}
     steps:
       - name: Google Cloud認証
         id: 'auth'
@@ -137,32 +135,31 @@ jobs:
       - name: Prepare Secrets Configuration
         id: prep_secrets
         shell: bash
+        env:
+          SECRETS_CONFIG: ${{ inputs.secrets_config }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           echo "::group::Preparing secrets configuration"
-          secrets_config_input="${{ inputs.secrets_config }}"
-          secrets_array=()
-          readarray -t secrets_array <<< "$secrets_config_input"
+
+          # Remove carriage returns and split by newline, then trim whitespace
+          mapfile -t secrets_array < <(echo "$SECRETS_CONFIG" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$')
           
           secrets_output=""
           first_secret=true
 
           for secret_name in "${secrets_array[@]}"; do
-            if [ -z "$secret_name" ]; then
-              continue
-            fi
-
             echo "Adding secret: $secret_name"
 
             if [ "$first_secret" = false ]; then
               secrets_output="${secrets_output},"
             fi
 
-            secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
+            secrets_output="${secrets_output}${secret_name}=projects/${GCP_PROJECT_ID}/secrets/${secret_name}/versions/latest"
             first_secret=false
           done
           
           echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
-          echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
+          echo "$secrets_output" >> "$GITHUB_OUTPUT"
           echo "EOF" >> "$GITHUB_OUTPUT"
           echo "::endgroup::"
 
