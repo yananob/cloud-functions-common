@@ -142,7 +142,8 @@ jobs:
           echo "::group::Preparing secrets configuration"
 
           # Remove carriage returns and split by newline, then trim whitespace
-          mapfile -t secrets_array < <(echo "$SECRETS_CONFIG" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$')
+          # 使用する変数が空の場合でもエラーにならないように調整
+          mapfile -t secrets_array < <(echo "$SECRETS_CONFIG" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' || true)
           
           secrets_output=""
           first_secret=true
@@ -158,9 +159,8 @@ jobs:
             first_secret=false
           done
           
-          echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
-          echo "$secrets_output" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "formatted_secrets=$secrets_output" >> "$GITHUB_OUTPUT"
+          echo "Final formatted_secrets: $secrets_output"
           echo "::endgroup::"
 
   upload-static:
@@ -223,6 +223,7 @@ jobs:
           echo "Max Instances: ${{ inputs.http_max_instance_count }}"
           echo "Timeout: ${{ inputs.http_timeout }}"
           echo "Memory: ${{ inputs.memory }}"
+          echo "Formatted Secrets (Job Output): ${{ needs.init.outputs.formatted_secrets }}"
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (http)
@@ -290,6 +291,7 @@ jobs:
           echo "Timeout: ${{ inputs.event_timeout }}"
           echo "Pub/Sub Topic: projects/${{ secrets.GCP_PROJECT_ID }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Memory: ${{ inputs.memory }}"
+          echo "Formatted Secrets (Job Output): ${{ needs.init.outputs.formatted_secrets }}"
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (event)
