@@ -171,8 +171,10 @@ jobs:
           echo "::endgroup::"
 
       - name: Verify Step Output
+        env:
+          B64_DATA: ${{ steps.prep_secrets.outputs.formatted_secrets_base64 }}
         run: |
-          echo "Step output (Base64) length: ${#{{ steps.prep_secrets.outputs.formatted_secrets_base64 }}}"
+          echo "Step output (Base64) length: ${#B64_DATA}"
 
   upload-static:
     name: Upload Static Files to GCS
