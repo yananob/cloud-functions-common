@@ -154,50 +154,22 @@ jobs:
 
       - name: Prepare Secrets Configuration
         id: prep_secrets
+        uses: actions/github-script@v7
         env:
-          # SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.secrets_project_id || inputs.project_id }}
-          SECRETS_PROJECT_FOR_CONSTRUCTION: ${{ inputs.project_id }}  # ここでsecretsが見れないみたい
-        shell: bash
-        run: |
-          # if [ -z "${{ secrets.GCP_PROJECT_ID }}" ]; then
-          #   echo "❌ シークレットが空っぽやで！"
-          # else
-          #   echo "✅ シークレットは届いてるみたいや（中身は見せへんけどな）"
-          #   echo "${{ secrets.GCP_PROJECT_ID }}"
-          # fi
-          # if [ -z "${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}" ]; then
-          #   echo "❌ シークレット2が空っぽやで！"
-          # else
-          #   echo "✅ シークレット2は届いてるみたいや（中身は見せへんけどな）"
-          # fi
-
-          echo "::group::Preparing secrets configuration"
-          secrets_config_input="${{ inputs.secrets_config }}"
-          secrets_array=()
-          readarray -t secrets_array <<< "$secrets_config_input"
-          
-          secrets_output=""
-          first_secret=true
-
-          for secret_name in "${secrets_array[@]}"; do
-            if [ -z "$secret_name" ]; then
-              continue
-            fi
-
-            echo "Adding secret: $secret_name"
-
-            if [ "$first_secret" = false ]; then
-              secrets_output="${secrets_output},"
-            fi
-
-            secrets_output="${secrets_output}${secret_name}=projects/${{ env.SECRETS_PROJECT_FOR_CONSTRUCTION }}/secrets/${secret_name}/versions/latest"
-            first_secret=false
-          done
-          
-          echo "formatted_secrets<<EOF" >> "$GITHUB_OUTPUT"
-          echo -e "$secrets_output" >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-          echo "::endgroup::"
+          SECRETS_CONFIG: ${{ inputs.secrets_config }}
+          PROJECT_ID: ${{ inputs.project_id }}
+        with:
+          script: |
+            core.startGroup('Preparing secrets configuration');
+            const { SECRETS_CONFIG, PROJECT_ID } = process.env;
+            const secrets = SECRETS_CONFIG.split(/\r?\n/).filter(line => line.trim() !== '');
+            const formatted = secrets.map(name => {
+              const trimmed = name.trim();
+              console.log(`Adding secret: ${trimmed}`);
+              return `${trimmed}=projects/${PROJECT_ID}/secrets/${trimmed}/versions/latest`;
+            }).join(',');
+            core.setOutput('formatted_secrets', formatted);
+            core.endGroup();
 
   upload-static:
     name: Upload Static Files to GCS
