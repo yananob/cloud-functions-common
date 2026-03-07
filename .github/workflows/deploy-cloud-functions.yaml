@@ -124,9 +124,9 @@ on:
         type: string
         default: ''
     secrets:
-      GCP_PROJECT_ID:
-        description: 'Google CloudプロジェクトID'
-        required: true
+    #   GCP_PROJECT_ID:
+    #     description: 'Google CloudプロジェクトID'
+    #     required: true
       GCP_REGION:
         description: 'Google Cloudリージョン'
         required: true
