@@ -309,7 +309,7 @@ jobs:
           max_instance_count: ${{ inputs.http_max_instance_count }}
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
-          environment_variables: ${{ steps.format-secrets.outputs.secrets_list }}  # DEBUG!!
+          environment_variables: ${{ steps.format-secrets.outputs.secrets_list }}  # DEBUG!!!
           secrets: ${{ steps.format-secrets.outputs.secrets_list }}
           # environment_variables: |-
           #  ${{ inputs.environment_variables }}
