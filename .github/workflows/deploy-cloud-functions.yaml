@@ -166,13 +166,15 @@ jobs:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
           service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
 
-      - name: 'Deployment Configuration Summary'
+      - name: 'Prepare Secrets and Summary (HTTP)'
         shell: bash
         id: decode_secrets
         env:
           SECRETS_CONFIG: ${{ inputs.secrets_config }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
+          # NOTE: Secret processing is done within this job to ensure visibility of outputs.
+          # (Outputs from other jobs were not always visible in subsequent jobs)
           echo "::group::Deployment Configuration (HTTP)"
           echo "Function Name: ${{ inputs.function_name }}"
           echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
@@ -258,13 +260,15 @@ jobs:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
           service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
 
-      - name: 'Deployment Configuration Summary'
+      - name: 'Prepare Secrets and Summary (Event)'
         shell: bash
         id: decode_secrets_event
         env:
           SECRETS_CONFIG: ${{ inputs.secrets_config }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
+          # NOTE: Secret processing is done within this job to ensure visibility of outputs.
+          # (Outputs from other jobs were not always visible in subsequent jobs)
           echo "::group::Deployment Configuration (Event)"
           echo "Function Name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
