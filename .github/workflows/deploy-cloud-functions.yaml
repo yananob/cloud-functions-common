@@ -188,6 +188,7 @@ jobs:
             if [ -n "$KEY" ]; then
               # 「KEY=projects/ID/secrets/KEY:latest」の形を作る
               ITEM="${KEY}=projects/${PROJECT_ID}/secrets/${KEY}:latest"
+              echo "Formatted secret: ${ITEM}"
               
               if [ -z "$FORMATTED_LIST" ]; then
                 FORMATTED_LIST="$ITEM"
