@@ -309,10 +309,10 @@ jobs:
           max_instance_count: ${{ inputs.http_max_instance_count }}
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
-          environment_variables: ${{ steps.format-secrets.outputs.secrets_list }}  # DEBUG!!!
-          secrets: ${{ steps.format-secrets.outputs.secrets_list }}
-          # environment_variables: |-
-          #  ${{ inputs.environment_variables }}
+          secrets: |-
+            ${{ steps.format-secrets.outputs.secrets_list }}
+          environment_variables: |-
+            ${{ inputs.environment_variables }}
 
       - name: 'Allow Public Access to HTTP Function'
         if: contains(inputs.environment_variables, 'APP_ENV=test')
@@ -379,6 +379,7 @@ jobs:
           max_instance_count: 1
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.event_timeout }}
-          secrets: ${{ needs.init.outputs.formatted_secrets }}
+          secrets: |-
+            ${{ steps.format-secrets.outputs.secrets_list }}
           environment_variables: |-
            ${{ inputs.environment_variables }}
