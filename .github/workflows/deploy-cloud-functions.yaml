@@ -143,7 +143,7 @@ jobs:
     name: Prepare Deployment
     runs-on: ubuntu-latest
     outputs:
-      formatted_secrets: ${{ steps.format-secrets.outputs.formatted_secrets }}
+      formatted_secrets: ${{ steps.format-secrets.outputs.secrets_list }}
     steps:
       - name: Google Cloud認証
         id: 'auth'
@@ -199,6 +199,7 @@ jobs:
           done
 
           # 結果をセット（例: KEY1=path1,KEY2=path2...）
+          echo "Formatted secrets: ${FORMATTED_LIST}"
           echo "secrets_list=${FORMATTED_LIST}" >> $GITHUB_OUTPUT
           
   upload-static:
