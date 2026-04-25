@@ -265,7 +265,7 @@ jobs:
           for KEY in $SECRETS_INPUT; do
             if [ -n "$KEY" ]; then
               # 「KEY=projects/ID/secrets/KEY:latest」の形を作る
-              ITEM="${KEY}=projects/${PROJECT_ID}/secrets/${KEY}:latest"
+              ITEM="${KEY}=projects/${PROJECT_ID}/secrets/${KEY}/versions/latest"
               echo "Formatted secret: ${ITEM}"
               
               if [ -z "$FORMATTED_LIST" ]; then
