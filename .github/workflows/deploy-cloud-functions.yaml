@@ -253,13 +253,14 @@ jobs:
         run: |
           echo "::group::Deployment Configuration (HTTP)"
           echo "Function Name: ${{ inputs.function_name }}"
-          echo "Project ID: ${{ inputs.project_id }}"
+          echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
           echo "Region: ${{ secrets.GCP_REGION }}"
           echo "Runtime: ${{ inputs.runtime }}"
           echo "Entry Point: ${{ inputs.http_entry_point }}"
           echo "Max Instances: ${{ inputs.http_max_instance_count }}"
           echo "Timeout: ${{ inputs.http_timeout }}"
           echo "Memory: ${{ inputs.memory }}"
+          echo "Secrets: ${{ needs.init.outputs.formatted_secrets }}"
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (http)
