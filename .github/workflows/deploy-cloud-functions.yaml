@@ -172,35 +172,35 @@ jobs:
       #       core.endGroup();
 
   # 2. 文字列の整形：Project ID を動的に埋め込む
-      - name: Prepare Secrets Configuration
-        id: format-secrets
-        run: |
-          # 認証ステップから Project ID を取得
-          PROJECT_ID="${{ steps.auth.outputs.project_id }}"
+      # - name: Prepare Secrets Configuration
+      #   id: format-secrets
+      #   run: |
+      #     # 認証ステップから Project ID を取得
+      #     PROJECT_ID="${{ steps.auth.outputs.project_id }}"
           
-          echo "Processing secrets for project: ${PROJECT_ID}"
+      #     echo "Processing secrets for project: ${PROJECT_ID}"
 
-          # 入力の改行区切りテキストを読み込む
-          SECRETS_INPUT="${{ inputs.secrets_config }}"
-          FORMATTED_LIST=""
+      #     # 入力の改行区切りテキストを読み込む
+      #     SECRETS_INPUT="${{ inputs.secrets_config }}"
+      #     FORMATTED_LIST=""
 
-          for KEY in $SECRETS_INPUT; do
-            if [ -n "$KEY" ]; then
-              # 「KEY=projects/ID/secrets/KEY:latest」の形を作る
-              ITEM="${KEY}=projects/${PROJECT_ID}/secrets/${KEY}:latest"
-              echo "Formatted secret: ${ITEM}"
+      #     for KEY in $SECRETS_INPUT; do
+      #       if [ -n "$KEY" ]; then
+      #         # 「KEY=projects/ID/secrets/KEY:latest」の形を作る
+      #         ITEM="${KEY}=projects/${PROJECT_ID}/secrets/${KEY}:latest"
+      #         echo "Formatted secret: ${ITEM}"
               
-              if [ -z "$FORMATTED_LIST" ]; then
-                FORMATTED_LIST="$ITEM"
-              else
-                FORMATTED_LIST="${FORMATTED_LIST},${ITEM}"
-              fi
-            fi
-          done
+      #         if [ -z "$FORMATTED_LIST" ]; then
+      #           FORMATTED_LIST="$ITEM"
+      #         else
+      #           FORMATTED_LIST="${FORMATTED_LIST},${ITEM}"
+      #         fi
+      #       fi
+      #     done
 
-          # 結果をセット（例: KEY1=path1,KEY2=path2...）
-          echo "Formatted secrets: ${FORMATTED_LIST}"
-          echo "secrets_list=${FORMATTED_LIST}" >> $GITHUB_OUTPUT
+      #     # 結果をセット（例: KEY1=path1,KEY2=path2...）
+      #     echo "Formatted secrets: ${FORMATTED_LIST}"
+      #     echo "secrets_list=${FORMATTED_LIST}" >> $GITHUB_OUTPUT
           
   upload-static:
     name: Upload Static Files to GCS
@@ -250,6 +250,36 @@ jobs:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
           service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
 
+      - name: Prepare Secrets Configuration
+        id: format-secrets
+        run: |
+          # 認証ステップから Project ID を取得
+          PROJECT_ID="${{ steps.auth.outputs.project_id }}"
+          
+          echo "Processing secrets for project: ${PROJECT_ID}"
+
+          # 入力の改行区切りテキストを読み込む
+          SECRETS_INPUT="${{ inputs.secrets_config }}"
+          FORMATTED_LIST=""
+
+          for KEY in $SECRETS_INPUT; do
+            if [ -n "$KEY" ]; then
+              # 「KEY=projects/ID/secrets/KEY:latest」の形を作る
+              ITEM="${KEY}=projects/${PROJECT_ID}/secrets/${KEY}:latest"
+              echo "Formatted secret: ${ITEM}"
+              
+              if [ -z "$FORMATTED_LIST" ]; then
+                FORMATTED_LIST="$ITEM"
+              else
+                FORMATTED_LIST="${FORMATTED_LIST},${ITEM}"
+              fi
+            fi
+          done
+
+          # 結果をセット（例: KEY1=path1,KEY2=path2...）
+          echo "Formatted secrets: ${FORMATTED_LIST}"
+          echo "secrets_list=${FORMATTED_LIST}" >> $GITHUB_OUTPUT
+
       - name: 'Deployment Configuration Summary'
         shell: bash
         run: |
@@ -262,7 +292,8 @@ jobs:
           echo "Max Instances: ${{ inputs.http_max_instance_count }}"
           echo "Timeout: ${{ inputs.http_timeout }}"
           echo "Memory: ${{ inputs.memory }}"
-          echo "Secrets: ${{ needs.init.outputs.formatted_secrets }}"
+          # echo "Secrets: ${{ needs.init.outputs.formatted_secrets }}"
+          echo "Secrets: ${{ steps.format-secrets.outputs.secrets_list }}"
           echo "::endgroup::"
 
       - name: Deploy Cloud Functions (http)
@@ -278,8 +309,8 @@ jobs:
           max_instance_count: ${{ inputs.http_max_instance_count }}
           memory: ${{ inputs.memory }}
           service_timeout: ${{ inputs.http_timeout }}
-          environment_variables: ${{ needs.init.outputs.formatted_secrets }}
-          secrets: ${{ needs.init.outputs.formatted_secrets }}
+          environment_variables: ${{ steps.format-secrets.outputs.secrets_list }}  # DEBUG!!
+          secrets: ${{ steps.format-secrets.outputs.secrets_list }}
           # environment_variables: |-
           #  ${{ inputs.environment_variables }}
 
