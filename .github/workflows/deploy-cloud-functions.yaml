@@ -126,8 +126,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-        with:
-          submodules: 'true'
+        # with:
+        #   submodules: 'true'
 
       - name: Google Cloud認証
         id: 'auth'
@@ -156,8 +156,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-        with:
-          submodules: 'true'
+        # with:
+        #   submodules: 'true'
 
       - name: Google Cloud認証
         id: 'auth'
@@ -250,8 +250,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v5
-        with:
-          submodules: 'true'
+        # with:
+        #   submodules: 'true'
 
       - name: Google Cloud認証
         id: 'auth'
