@@ -119,63 +119,6 @@ permissions:
   id-token: 'write'
 
 jobs:
-  init:
-    name: Prepare Deployment
-    runs-on: ubuntu-latest
-    outputs:
-      # シークレットを含む文字列を安全に渡すため Base64 エンコードを使用
-      formatted_secrets: ${{ steps.prep_secrets.outputs.formatted_secrets_base64 }}
-      test_output: "testing_connection"
-    steps:
-      - name: Google Cloud認証
-        id: 'auth'
-        uses: 'google-github-actions/auth@v3'
-        with:
-          workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
-          service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
-
-      - name: Prepare Secrets Configuration
-        id: prep_secrets
-        shell: bash
-        env:
-          SECRETS_CONFIG: ${{ inputs.secrets_config }}
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-        run: |
-          echo "::group::Preparing secrets configuration"
-          
-          if [ -z "$GCP_PROJECT_ID" ]; then
-            echo "Warning: GCP_PROJECT_ID is empty"
-          fi
-
-          # Read SECRETS_CONFIG line by line and build the output string
-          secrets_output=""
-          while IFS= read -r line || [[ -n "$line" ]]; do
-            # Trim whitespace
-            secret_name=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            [ -z "$secret_name" ] && continue
-            
-            echo "Adding secret: $secret_name"
-            if [ -n "$secrets_output" ]; then
-              secrets_output="${secrets_output},"
-            fi
-            secrets_output="${secrets_output}${secret_name}=projects/${GCP_PROJECT_ID}/secrets/${secret_name}/versions/latest"
-          done <<< "$SECRETS_CONFIG"
-          
-          # Set the output for the step as Base64 to avoid filtering
-          echo "formatted_secrets_base64=$(echo -n "$secrets_output" | base64 -w 0)" >> "$GITHUB_OUTPUT"
-          
-          # Debug output
-          echo "Generated secrets_output length: ${#secrets_output}"
-          # Base64の結果も一応出す（デバッグ用）
-          echo "Generated Base64 length: $(echo -n "$secrets_output" | base64 -w 0 | wc -c)"
-          echo "::endgroup::"
-
-      - name: Verify Step Output
-        env:
-          B64_DATA: ${{ steps.prep_secrets.outputs.formatted_secrets_base64 }}
-        run: |
-          echo "Step output (Base64) length: ${#B64_DATA}"
-
   upload-static:
     name: Upload Static Files to GCS
     if: inputs.gcs_source_dir != '' && inputs.gcs_bucket_name != ''
@@ -208,7 +151,6 @@ jobs:
 
   deploy-http:
     name: Deploy HTTP Function
-    needs: init
     if: inputs.deploy_http_trigger
     runs-on: ubuntu-latest
     steps:
@@ -224,10 +166,15 @@ jobs:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
           service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
 
-      - name: 'Deployment Configuration Summary'
+      - name: 'Prepare Secrets and Summary (HTTP)'
         shell: bash
         id: decode_secrets
+        env:
+          SECRETS_CONFIG: ${{ inputs.secrets_config }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
+          # NOTE: Secret processing is done within this job to ensure visibility of outputs.
+          # (Outputs from other jobs were not always visible in subsequent jobs)
           echo "::group::Deployment Configuration (HTTP)"
           echo "Function Name: ${{ inputs.function_name }}"
           echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
@@ -237,15 +184,26 @@ jobs:
           echo "Max Instances: ${{ inputs.http_max_instance_count }}"
           echo "Timeout: ${{ inputs.http_timeout }}"
           echo "Memory: ${{ inputs.memory }}"
-          echo "Test Output (Job Connection): ${{ needs.init.outputs.test_output }}"
+
+          # Read SECRETS_CONFIG line by line and build the output string
+          secrets_output=""
+          while IFS= read -r line || [[ -n "$line" ]]; do
+            # Trim whitespace
+            secret_name=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [ -z "$secret_name" ] && continue
+
+            echo "Adding secret: $secret_name"
+            if [ -n "$secrets_output" ]; then
+              secrets_output="${secrets_output},"
+            fi
+            secrets_output="${secrets_output}${secret_name}=projects/${GCP_PROJECT_ID}/secrets/${secret_name}/versions/latest"
+          done <<< "$SECRETS_CONFIG"
+
+          echo "secrets_list=$secrets_output" >> "$GITHUB_OUTPUT"
           
-          # Decode Base64 value
-          if [ -n "${{ needs.init.outputs.formatted_secrets }}" ]; then
-            DECODED_SECRETS=$(echo "${{ needs.init.outputs.formatted_secrets }}" | base64 -d)
-            echo "secrets_list=$DECODED_SECRETS" >> "$GITHUB_OUTPUT"
-            echo "Formatted Secrets (Job Output Decoded): $DECODED_SECRETS"
+          if [ -n "$secrets_output" ]; then
+            echo "Formatted Secrets: $secrets_output"
           else
-            echo "secrets_list=" >> "$GITHUB_OUTPUT"
             echo "Formatted Secrets: (none)"
           fi
           echo "::endgroup::"
@@ -287,7 +245,6 @@ jobs:
 
   deploy-event:
     name: Deploy Event Function
-    needs: init
     if: inputs.deploy_event_trigger
     runs-on: ubuntu-latest
     steps:
@@ -303,10 +260,15 @@ jobs:
           workload_identity_provider: 'projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/${{ inputs.wip_pool_name }}/providers/${{ inputs.wip_provider_name }}'
           service_account: '${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com'
 
-      - name: 'Deployment Configuration Summary'
+      - name: 'Prepare Secrets and Summary (Event)'
         shell: bash
         id: decode_secrets_event
+        env:
+          SECRETS_CONFIG: ${{ inputs.secrets_config }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
+          # NOTE: Secret processing is done within this job to ensure visibility of outputs.
+          # (Outputs from other jobs were not always visible in subsequent jobs)
           echo "::group::Deployment Configuration (Event)"
           echo "Function Name: ${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Project ID: ${{ secrets.GCP_PROJECT_ID }}"
@@ -316,15 +278,26 @@ jobs:
           echo "Timeout: ${{ inputs.event_timeout }}"
           echo "Pub/Sub Topic: projects/${{ secrets.GCP_PROJECT_ID }}/topics/${{ inputs.function_name }}${{ inputs.event_trigger_pubsub_topic_suffix }}"
           echo "Memory: ${{ inputs.memory }}"
-          echo "Test Output (Job Connection): ${{ needs.init.outputs.test_output }}"
 
-          # Decode Base64 value
-          if [ -n "${{ needs.init.outputs.formatted_secrets }}" ]; then
-            DECODED_SECRETS=$(echo "${{ needs.init.outputs.formatted_secrets }}" | base64 -d)
-            echo "secrets_list=$DECODED_SECRETS" >> "$GITHUB_OUTPUT"
-            echo "Formatted Secrets (Job Output Decoded): $DECODED_SECRETS"
+          # Read SECRETS_CONFIG line by line and build the output string
+          secrets_output=""
+          while IFS= read -r line || [[ -n "$line" ]]; do
+            # Trim whitespace
+            secret_name=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            [ -z "$secret_name" ] && continue
+
+            echo "Adding secret: $secret_name"
+            if [ -n "$secrets_output" ]; then
+              secrets_output="${secrets_output},"
+            fi
+            secrets_output="${secrets_output}${secret_name}=projects/${GCP_PROJECT_ID}/secrets/${secret_name}/versions/latest"
+          done <<< "$SECRETS_CONFIG"
+
+          echo "secrets_list=$secrets_output" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$secrets_output" ]; then
+            echo "Formatted Secrets: $secrets_output"
           else
-            echo "secrets_list=" >> "$GITHUB_OUTPUT"
             echo "Formatted Secrets: (none)"
           fi
           echo "::endgroup::"
