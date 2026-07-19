@@ -106,6 +106,16 @@ on:
         required: true
         type: string
         default: ''
+      enable_iam:
+        description: 'Cloud RunのIAM（サービスアカウントからの起動）を有効にするかどうか'
+        required: false
+        type: boolean
+        default: true
+      enable_iap:
+        description: 'Cloud RunのIAP（Identity-Aware Proxyからの起動）を有効にするかどうか'
+        required: false
+        type: boolean
+        default: true
     secrets:
       GCP_PROJECT_ID:
         required: true
@@ -226,7 +236,7 @@ jobs:
            ${{ inputs.environment_variables }}
 
       - name: 'Allow Public Access to HTTP Function'
-        if: contains(inputs.environment_variables, 'APP_ENV=test')
+        if: contains(inputs.environment_variables, 'APP_ENV=test') && !inputs.enable_iam && !inputs.enable_iap
         shell: bash
         run: |
           # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
@@ -234,6 +244,27 @@ jobs:
             --project=${{ secrets.GCP_PROJECT_ID }} \
             --region=${{ secrets.GCP_REGION }} \
             --member="allUsers" \
+            --role="roles/run.invoker"
+
+      - name: 'Configure IAM for Cloud Run Service'
+        if: inputs.enable_iam
+        shell: bash
+        run: |
+          gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --member="serviceAccount:${{ inputs.service_account_name }}@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --role="roles/run.invoker"
+
+      - name: 'Configure IAP for Cloud Run Service'
+        if: inputs.enable_iap
+        shell: bash
+        run: |
+          GCP_PROJECT_NUMBER=$(gcloud projects describe ${{ secrets.GCP_PROJECT_ID }} --format="value(projectNumber)")
+          gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
+            --project=${{ secrets.GCP_PROJECT_ID }} \
+            --region=${{ secrets.GCP_REGION }} \
+            --member="serviceAccount:service-${GCP_PROJECT_NUMBER}@gcp-sa-iap.iam.gserviceaccount.com" \
             --role="roles/run.invoker"
 
   deploy-event:
