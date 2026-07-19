@@ -210,7 +210,7 @@ jobs:
           done <<< "$SECRETS_CONFIG"
 
           echo "secrets_list=$secrets_output" >> "$GITHUB_OUTPUT"
-          
+
           if [ -n "$secrets_output" ]; then
             echo "Formatted Secrets: $secrets_output"
           else
@@ -235,16 +235,16 @@ jobs:
           environment_variables: |-
            ${{ inputs.environment_variables }}
 
-      - name: 'Allow Public Access to HTTP Function'
-        if: contains(inputs.environment_variables, 'APP_ENV=test') && !inputs.enable_iam && !inputs.enable_iap
-        shell: bash
-        run: |
-          # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
-          gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --region=${{ secrets.GCP_REGION }} \
-            --member="allUsers" \
-            --role="roles/run.invoker"
+      # - name: 'Allow Public Access to HTTP Function'
+      #   if: contains(inputs.environment_variables, 'APP_ENV=test') && !inputs.enable_iam && !inputs.enable_iap
+      #   shell: bash
+      #   run: |
+      #     # 裏側の Cloud Run に対しても権限付与（第2世代の場合に必要）
+      #     gcloud run services add-iam-policy-binding ${{ inputs.function_name }} \
+      #       --project=${{ secrets.GCP_PROJECT_ID }} \
+      #       --region=${{ secrets.GCP_REGION }} \
+      #       --member="allUsers" \
+      #       --role="roles/run.invoker"
 
       - name: 'Configure IAM for Cloud Run Service'
         if: inputs.enable_iam
